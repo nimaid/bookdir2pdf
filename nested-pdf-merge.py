@@ -1,8 +1,22 @@
 #!/usr/bin/env python3
 
-# Parse arguments before running main program
-import argparse, os
+import argparse, os, sys
 
+# Test if this is a PyInstaller executable or a .py file
+if getattr(sys, 'frozen', False):
+    IS_EXE = True
+    PROG_FILE = sys.executable
+    PROG_PATH = os.path.dirname(PROG_FILE) 
+    PATH = sys._MEIPASS
+else:
+    IS_EXE = False
+    PROG_FILE = os.path.realpath(__file__)
+    PROG_PATH = os.path.dirname(PROG_FILE)
+    PATH = PROG_PATH
+
+#TODO: Use 'PROG_PATH' if files are relative paths to .exe
+
+# Parse arguments before running main program
 def dir_path(string):
     if os.path.isdir(string):
         return string
