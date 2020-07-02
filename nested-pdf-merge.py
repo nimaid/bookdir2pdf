@@ -135,7 +135,7 @@ def iterdict(d, base_path=""):
                 bm_name = k
             else:
                 bm_name = args["order_number_seperator"].join(k.split(args["order_number_seperator"])[1:]).strip(" ")
-            print(ident + bm_name + "\tPage #" + str(last_page_index))
+            print(ident + bm_name + "\tPage #" + str(last_page_index + 1))
             ident += ident_str
             
             path_list.append(k)
@@ -159,7 +159,7 @@ def iterdict(d, base_path=""):
             filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
             page_index = page_list.index(filename)
             last_page_index = page_index + 1
-            #print(ident + k + "\tPage #" + str(page_index))
+            #print(ident + k + "\tPage #" + str(page_index + 1))
 iterdict(page_dict[input_dir_name], base_path=input_dir_name)
 
 # Save final PDF
