@@ -117,6 +117,7 @@ os.remove(temp_pdf)
 print()
 print("Creating nested bookmarks...")
 ident = ""
+ident_str = "--- "
 last_page_index = 0
 path_list = list()
 bookmark_list = list()
@@ -127,8 +128,10 @@ def iterdict(d, base_path=""):
 
     for k, v in d.items():        
         if isinstance(v, OrderedDict):
-            print(str(last_page_index) + "  " + ident + k)
-            ident += '\t'
+            #TODO: Strip leading numbers more dynamically
+            bm_name = ".".join(k.split(".")[1:]).strip(" ")
+            print(ident + bm_name + "\tPage #" + str(last_page_index))
+            ident += ident_str
             
             path_list.append(k)
             
@@ -137,22 +140,21 @@ def iterdict(d, base_path=""):
                 bm_parent = bookmark_list[-1]
             else:
                 bm_parent = None
-            #TODO: Strip leading numbers
-            bm = output_pdf.addBookmark(k, last_page_index, parent=bm_parent)
+            
+            bm = output_pdf.addBookmark(bm_name, last_page_index, parent=bm_parent)
             bookmark_list.append(bm)
             
             iterdict(v, base_path=base_path)
             
             temp = bookmark_list.pop()
-            
             temp = path_list.pop()
             
-            ident = ident[:-1]
+            ident = ident[:-len(ident_str)]
         else:
             filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
             page_index = page_list.index(filename)
             last_page_index = page_index + 1
-            print(str(page_index) + "  " + ident + k)
+            #print(ident + k + "\tPage #" + str(page_index))
 iterdict(page_dict[input_dir_name], base_path=input_dir_name)
 
 # Save final PDF
