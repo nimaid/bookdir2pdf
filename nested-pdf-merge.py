@@ -33,7 +33,7 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
 args = vars(ap.parse_args())
 
 if not os.path.isabs(args["input_dir"]):
-    input_dir = os.path.join(PROG_PATH, input_dir)
+    input_dir = os.path.join(PROG_PATH, args["input_dir"])
 else:
     input_dir = args["input_dir"]
 
