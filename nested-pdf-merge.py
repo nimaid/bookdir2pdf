@@ -14,6 +14,8 @@ ap.add_argument("-i", "--input_dir", type=dir_path, required=True,
     help="path to nested image directory to merge")
 ap.add_argument("-o", "--output_file", type=str, default=None,
     help="output file path (defaults to [input_dir].pdf)")
+ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
+    help="the character used to seperate the direcotry ordering numbers from the bookmark names (like '.' or ')')")
 args = vars(ap.parse_args())
 
 input_dir_name = args["input_dir"].strip(os.path.sep).split(os.path.sep)[-1]
@@ -129,7 +131,10 @@ def iterdict(d, base_path=""):
     for k, v in d.items():        
         if isinstance(v, OrderedDict):
             #TODO: Strip leading numbers more dynamically
-            bm_name = ".".join(k.split(".")[1:]).strip(" ")
+            if args["order_number_seperator"] == None:
+                bm_name = k
+            else:
+                bm_name = args["order_number_seperator"].join(k.split(args["order_number_seperator"])[1:]).strip(" ")
             print(ident + bm_name + "\tPage #" + str(last_page_index))
             ident += ident_str
             
