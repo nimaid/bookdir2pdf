@@ -35,6 +35,7 @@ else:
 from fpdf import FPDF
 from PIL import Image
 from functools import reduce
+from collections import OrderedDict 
 
 # Declare functions
 def sorted_walk(top, topdown=True, onerror=None):
@@ -59,25 +60,71 @@ def sorted_walk(top, topdown=True, onerror=None):
     if not topdown:
         yield top, dirs, nondirs
 
+def get_directory_structure(rootdir):
+    # Creates a nested ordered dictionary that represents the folder structure of rootdir
+    # Keys are added in alphebetical order, recursively
+    # Also returns a list with ordered file paths
+    dir_dict = OrderedDict()
+    dir_list = list()
+    rootdir = rootdir.rstrip(os.sep)
+    start = rootdir.rfind(os.sep) + 1
+    for path, dirs, files in sorted_walk(rootdir):
+        files.sort()
+        folders = path[start:].split(os.sep)
+        subdir = OrderedDict.fromkeys(files)
+        parent = reduce(OrderedDict.get, folders[:-1], dir_dict)
+        parent[folders[-1]] = subdir
+        
+        for file in files:
+            filename = os.path.join(path, file)
+            dir_list.append(filename)
+    return dir_dict, dir_list
+
 # Walk though folder structure (recursive alphabetical)
-# Save image paths to list
-page_list = list()
-for root, sub_folders, files in sorted_walk(args["input_dir"]):
-    files.sort()
-    for file in files:
-        file_name = os.path.join(root,file)
-        page_list.append(file_name)
+# Save image paths to ordered dictionary
+page_dict, page_list = get_directory_structure(args["input_dir"])
 
 # Get size from first page
 cover = Image.open(page_list[0])
 width, height = cover.size
 
-# Create PDF (no bookmarks)
+# Create PDF from page_list(no bookmarks)
 pdf = FPDF(unit = "pt", format = [width, height])
 for page in page_list:
     print("Adding page: " + page)
     pdf.add_page()
     pdf.image(page, 0, 0)
+print("Saving '{}'".format(output_file))
 pdf.output(output_file, "F")
 
-#TODO: Add nested bookmarks
+# Add nested bookmarks from page_dict
+print()
+ident = ""
+last_page_index = 0
+path_list = list()
+def iterdict(d):
+    global ident
+    global path_list
+    global last_page_index
+    for k, v in d.items():        
+        if isinstance(v, OrderedDict):
+            #TODO: Add bookmark w/ parent
+            print(str(last_page_index) + "  " + ident + k)
+            ident += '\t'
+            
+            path_list.append(k)
+            iterdict(v)
+            temp = path_list.pop()
+            
+            ident = ident[:-1]
+        else:
+            filename = os.path.sep.join(path_list + [k])
+            page_index = page_list.index(filename)
+            last_page_index = page_index + 1
+            print(str(page_index) + "  " + ident + k)
+iterdict(page_dict)
+
+
+
+    
+    
