@@ -78,6 +78,9 @@ def sorted_walk(top, topdown=True, onerror=None):
     if not topdown:
         yield top, dirs, nondirs
 
+
+#TODO: Put images before folders if they come first alphabetically
+#TODO:     Currently, not... 
 def get_directory_structure(rootdir):
     # Creates a nested ordered dictionary that represents the folder structure of rootdir
     # Keys are added in alphebetical order, recursively
