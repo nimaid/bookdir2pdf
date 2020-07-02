@@ -16,9 +16,10 @@ ap.add_argument("-o", "--output_file", type=str, default=None,
     help="output file path (defaults to [input_dir].pdf)")
 args = vars(ap.parse_args())
 
+input_dir_name = args["input_dir"].strip(os.path.sep).split(os.path.sep)[-1]
+
 if args["output_file"] == None:
-    input_dir_name = args["input_dir"].strip(os.path.sep).split(os.path.sep)[-1]
-    output_file = input_dir_name + ".pdf"
+    output_file = input_dir_name + os.path.extsep + "pdf"
 else:
     out_dir, out_name = os.path.split(args["output_file"])
     out_name_split = out_name.split(os.path.extsep)
@@ -26,16 +27,17 @@ else:
         # There is an extention
         output_file = args["output_file"]
         if out_name_split[-1].lower() != "pdf":
-            output_file += ".pdf"
+            output_file += os.path.extsep + "pdf"
     else:
         # No extention provided
-        output_file = args["output_file"] + ".pdf"
+        output_file = args["output_file"] + os.path.extsep + "pdf"
 
 # Do main imports
 from fpdf import FPDF
 from PIL import Image
 from functools import reduce
-from collections import OrderedDict 
+from collections import OrderedDict
+from PyPDF2 import PdfFileWriter, PdfFileReader
 
 # Declare functions
 def sorted_walk(top, topdown=True, onerror=None):
@@ -89,24 +91,40 @@ cover = Image.open(page_list[0])
 width, height = cover.size
 
 # Create PDF from page_list(no bookmarks)
+print("Adding images to PDF...")
+temp_pdf = "temp_" + output_file
 pdf = FPDF(unit = "pt", format = [width, height])
 for page in page_list:
     print("Adding page: " + page)
     pdf.add_page()
     pdf.image(page, 0, 0)
-print("Saving '{}'".format(output_file))
-pdf.output(output_file, "F")
+print("Saving temporary PDF '{}'".format(temp_pdf))
+pdf.output(temp_pdf, "F")
+
+
+# Load PDF into PyPDF2
+print("Loading temporary PDF into editing library...")
+output_pdf = PdfFileWriter()
+input_pdf = PdfFileReader(open(temp_pdf, 'rb'))
+for p in range(input_pdf.numPages):
+    output_pdf.addPage(input_pdf.getPage(p))
+
+# Delete temporary PDF
+print("Deleting temporary PDF '{}'".format(temp_pdf))
+os.remove(temp_pdf)
 
 # Add nested bookmarks from page_dict
 print()
+print("Creating nested bookmarks...")
 ident = ""
 last_page_index = 0
 path_list = list()
 bookmark_list = list()
-def iterdict(d):
+def iterdict(d, base_path=""):
     global ident
     global path_list
     global last_page_index
+
     for k, v in d.items():        
         if isinstance(v, OrderedDict):
             print(str(last_page_index) + "  " + ident + k)
@@ -114,24 +132,30 @@ def iterdict(d):
             
             path_list.append(k)
             
-            #TODO: Add bookmark w/ parent
-            #bookmark_list.append()
+            # Add bookmark w/ parent
+            if len(bookmark_list) > 0:
+                bm_parent = bookmark_list[-1]
+            else:
+                bm_parent = None
+            #TODO: Strip leading numbers
+            bm = output_pdf.addBookmark(k, last_page_index, parent=bm_parent)
+            bookmark_list.append(bm)
             
-            iterdict(v)
+            iterdict(v, base_path=base_path)
             
-            #temp = bookmark_list.pop()
+            temp = bookmark_list.pop()
             
             temp = path_list.pop()
             
             ident = ident[:-1]
         else:
-            filename = os.path.sep.join(path_list + [k])
+            filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
             page_index = page_list.index(filename)
             last_page_index = page_index + 1
             print(str(page_index) + "  " + ident + k)
-iterdict(page_dict)
+iterdict(page_dict[input_dir_name], base_path=input_dir_name)
 
-
-
-    
-    
+# Save final PDF
+print("Saving bookmarked PDF '{}'".format(output_file))
+with open(output_file, 'wb') as f:
+    output_pdf.write(f)
