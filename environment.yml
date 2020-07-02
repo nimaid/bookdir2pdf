@@ -6,3 +6,5 @@ dependencies:
   - pip
   - pip:
     - PyPDF2
+    - fpdf
+    - Pillow
