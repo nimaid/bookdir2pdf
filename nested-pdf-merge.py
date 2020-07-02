@@ -32,10 +32,16 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names (like '.' or ')')")
 args = vars(ap.parse_args())
 
-input_dir_name = args["input_dir"].strip(os.path.sep).split(os.path.sep)[-1]
+if not os.path.isabs(args["input_dir"]):
+    input_dir = os.path.join(PROG_PATH, input_dir)
+else:
+    input_dir = args["input_dir"]
+
+input_dir_name = input_dir.strip(os.path.sep).split(os.path.sep)[-1]
+
 
 if args["output_file"] == None:
-    output_file = input_dir_name + os.path.extsep + "pdf"
+    output_file = input_dir + os.path.extsep + "pdf"
 else:
     out_dir, out_name = os.path.split(args["output_file"])
     out_name_split = out_name.split(os.path.extsep)
@@ -47,6 +53,12 @@ else:
     else:
         # No extention provided
         output_file = args["output_file"] + os.path.extsep + "pdf"
+
+print(output_file)
+
+output_file_dir, output_file_name = os.path.split(output_file)
+
+print(output_file_name)
 
 # Do main imports
 from fpdf import FPDF
@@ -103,7 +115,7 @@ def get_directory_structure(rootdir):
 
 # Walk though folder structure (recursive alphabetical)
 # Save image paths to ordered dictionary
-page_dict, page_list = get_directory_structure(args["input_dir"])
+page_dict, page_list = get_directory_structure(input_dir)
 
 # Get size from first page
 cover = Image.open(page_list[0])
@@ -111,7 +123,8 @@ width, height = cover.size
 
 # Create PDF from page_list(no bookmarks)
 print("Adding images to PDF...")
-temp_pdf = "temp_" + output_file
+temp_pdf = os.path.join(output_file_dir, "temp_" + output_file_name)
+print(temp_pdf)
 pdf = FPDF(unit = "pt", format = [width, height])
 for page in page_list:
     print("Adding page: " + page)
@@ -120,17 +133,14 @@ for page in page_list:
 print("Saving temporary PDF '{}'".format(temp_pdf))
 pdf.output(temp_pdf, "F")
 
-
 # Load PDF into PyPDF2
 print("Loading temporary PDF into editing library...")
 output_pdf = PdfFileWriter()
-input_pdf = PdfFileReader(open(temp_pdf, 'rb'))
+
+input_pdf_file = open(temp_pdf, 'rb')
+input_pdf = PdfFileReader(input_pdf_file)
 for p in range(input_pdf.numPages):
     output_pdf.addPage(input_pdf.getPage(p))
-
-# Delete temporary PDF
-print("Deleting temporary PDF '{}'".format(temp_pdf))
-os.remove(temp_pdf)
 
 # Add nested bookmarks from page_dict
 print()
@@ -177,9 +187,15 @@ def iterdict(d, base_path=""):
             page_index = page_list.index(filename)
             last_page_index = page_index + 1
             #print(ident + k + "\tPage #" + str(page_index + 1))
-iterdict(page_dict[input_dir_name], base_path=input_dir_name)
+iterdict(page_dict[input_dir_name], base_path=input_dir)
 
 # Save final PDF
 print("Saving bookmarked PDF '{}'".format(output_file))
 with open(output_file, 'wb') as f:
     output_pdf.write(f)
+
+# Delete temporary PDF
+print()
+print("Deleting temporary PDF '{}'".format(temp_pdf))
+input_pdf_file.close()
+os.remove(temp_pdf)
