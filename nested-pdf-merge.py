@@ -102,18 +102,25 @@ print()
 ident = ""
 last_page_index = 0
 path_list = list()
+bookmark_list = list()
 def iterdict(d):
     global ident
     global path_list
     global last_page_index
     for k, v in d.items():        
         if isinstance(v, OrderedDict):
-            #TODO: Add bookmark w/ parent
             print(str(last_page_index) + "  " + ident + k)
             ident += '\t'
             
             path_list.append(k)
+            
+            #TODO: Add bookmark w/ parent
+            #bookmark_list.append()
+            
             iterdict(v)
+            
+            #temp = bookmark_list.pop()
+            
             temp = path_list.pop()
             
             ident = ident[:-1]
