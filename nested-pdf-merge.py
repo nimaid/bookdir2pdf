@@ -66,56 +66,20 @@ from PIL import Image
 from functools import reduce
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
+from pathlib import Path
 
-# Declare functions
-def sorted_walk(top, topdown=True, onerror=None):
-    # Ripped from os module and slightly modified for alphabetical sorting
-    names = os.listdir(top)
-    names.sort()
-    dirs, nondirs = [], []
- 
-    for name in names:
-        if os.path.isdir(os.path.join(top, name)):
-            dirs.append(name)
-        else:
-            nondirs.append(name)
- 
-    if topdown:
-        yield top, dirs, nondirs
-    for name in dirs:
-        path = os.path.join(top, name)
-        if not os.path.islink(path):
-            for x in sorted_walk(path, topdown, onerror):
-                yield x
-    if not topdown:
-        yield top, dirs, nondirs
-
-
-#TODO: Put images before folders if they come first alphabetically
-#TODO:     Currently, not... 
-def get_directory_structure(rootdir):
-    # Creates a nested ordered dictionary that represents the folder structure of rootdir
-    # Keys are added in alphebetical order, recursively
-    # Also returns a list with ordered file paths
-    dir_dict = OrderedDict()
-    dir_list = list()
-    rootdir = rootdir.rstrip(os.sep)
-    start = rootdir.rfind(os.sep) + 1
-    for path, dirs, files in sorted_walk(rootdir):
-        files.sort()
-        folders = path[start:].split(os.sep)
-        subdir = OrderedDict.fromkeys(files)
-        parent = reduce(OrderedDict.get, folders[:-1], dir_dict)
-        parent[folders[-1]] = subdir
-        
-        for file in files:
-            filename = os.path.join(path, file)
-            dir_list.append(filename)
-    return dir_dict, dir_list
-
-# Walk though folder structure (recursive alphabetical)
-# Save image paths to ordered dictionary
-page_dict, page_list = get_directory_structure(input_dir)
+# Walk though folder structure (recursive alphabetical, mixed files/folders)
+# Save image paths to ordered list
+page_list = [str(p) for p in sorted(Path(input_dir).glob('**/*')) if p.is_file()]
+# Create nested ordered dictionary from list
+page_dict = OrderedDict()
+for p in page_list:
+    p = os.path.relpath(p, input_dir) # Make relative
+    current_level = page_dict
+    for part in p.split(os.path.sep):
+        if part not in current_level:
+            current_level[part] = OrderedDict()
+        current_level = current_level[part]
 
 # Get size from first page
 cover = Image.open(page_list[0])
@@ -134,6 +98,7 @@ print("Saving temporary PDF '{}'".format(temp_pdf))
 pdf.output(temp_pdf, "F")
 
 # Load PDF into PyPDF2
+print()
 print("Loading temporary PDF into editing library...")
 output_pdf = PdfFileWriter()
 
@@ -156,7 +121,7 @@ def iterdict(d, base_path=""):
     global last_page_index
 
     for k, v in d.items():        
-        if isinstance(v, OrderedDict):
+        if len(v) > 0:
             #TODO: Strip leading numbers more dynamically
             if args["order_number_seperator"] == None:
                 bm_name = k
@@ -187,7 +152,7 @@ def iterdict(d, base_path=""):
             page_index = page_list.index(filename)
             last_page_index = page_index + 1
             #print(ident + k + "\tPage #" + str(page_index + 1))
-iterdict(page_dict[input_dir_name], base_path=input_dir)
+iterdict(page_dict, base_path=input_dir)
 
 # Save final PDF
 print("Saving bookmarked PDF '{}'".format(output_file))
