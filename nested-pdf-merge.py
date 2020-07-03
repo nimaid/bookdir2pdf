@@ -52,11 +52,7 @@ else:
         # No extention provided
         output_file = args["output_file"] + os.path.extsep + "pdf"
 
-print(output_file)
-
 output_file_dir, output_file_name = os.path.split(output_file)
-
-print(output_file_name)
 
 # Do main imports
 from fpdf import FPDF
@@ -85,7 +81,6 @@ width, height = cover.size
 # Create PDF from page_list(no bookmarks)
 print("Adding images to PDF...")
 temp_pdf = os.path.join(output_file_dir, "temp_" + output_file_name)
-print(temp_pdf)
 pdf = FPDF(unit = "pt", format = [width, height])
 for page in page_list:
     print("Adding page: " + page)
@@ -125,6 +120,7 @@ def iterdict(d, base_path=""):
             else:
                 bm_name = args["order_number_seperator"].join(k.split(args["order_number_seperator"])[1:]).strip(" ")
             print(ident + bm_name + "\tPage #" + str(last_page_index + 1))
+            ident += ident_str
             ident += ident_str
             
             path_list.append(k)
