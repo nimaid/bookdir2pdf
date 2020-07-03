@@ -61,13 +61,42 @@ from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
 from pathlib import Path
 
-# Walk though folder structure (recursive alphabetical, mixed files/folders)
-# Save image paths to ordered list
-page_list = [str(p) for p in sorted(Path(input_dir).glob('**/*')) if p.is_file()]
+print()
+print("Scanning input directory...")
 
-# Ignore certain files
-#TODO: not .ignore files, ignored in pdf making, used in pdf bookmarking
+# Walk though folder structure (recursive alphabetical, include all files/folders)
+input_dir_list = [str(p) for p in sorted(Path(input_dir).glob('**/*'))]
+
+# Set file extentions to ignore
 ignored_file_exts = [".ignore", ".db"]
+
+# Set valid image extentions
+valid_exts = [".jpg", ".jpeg", ".png", ".gif"]
+valid_exts += ignored_file_exts
+
+# Save image paths (and empty/ignored-file dirs) paths to ordered list
+page_list = list()
+dir_list = list()
+for p in input_dir_list:
+    if os.path.isfile(p):
+        # Check if it's an invalid extention, and if so, fully ignore it
+        p_ext = os.path.splitext(p)[-1].lower()
+        if p_ext not in valid_exts:
+            print("[WARNING]: Unsupported file, ignoring: '{}'".format(p))
+            continue
+        
+        # Test if it should be ignored, and if so, fully ignore it
+        if p_ext in ignored_file_exts:
+            print("Ignoring file: '{}'".format(p))
+            continue
+            
+        page_list.append(p)
+    elif os.path.isdir(p):
+        #TODO: Test if it's empty or contains only ignored files
+        dir_list.append(p)
+        
+# Ignore certain files
+#TODO: remove when above is done
 page_list = [x for x in page_list if os.path.splitext(x)[-1].lower() not in ignored_file_exts]
 
 # Create nested ordered dictionary from list
@@ -85,10 +114,13 @@ cover = Image.open(page_list[0])
 width, height = cover.size
 
 # Create PDF from page_list(no bookmarks)
+print()
 print("Adding images to PDF...")
 temp_pdf = os.path.join(output_file_dir, "temp_" + output_file_name)
 pdf = FPDF(unit = "pt", format = [width, height])
 for page in page_list:
+    #TODO: Process with blur+sharpen
+    #TODO: Process with adaptive threshold
     print("Adding page: " + page)
     pdf.add_page()
     pdf.image(page, 0, 0)
