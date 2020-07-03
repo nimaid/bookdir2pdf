@@ -161,7 +161,7 @@ print("Creating nested bookmarks...")
 ident = ""
 ident_str = "--- "
 pagenum_sep = "\t\tPage #"
-last_page_index = 0
+last_page_index = -1 # Because we want the next page to be 0
 path_list = list()
 bookmark_list = list()
 def iterdict(d, base_path=""):
@@ -182,16 +182,18 @@ def iterdict(d, base_path=""):
         else:
             bm_name = args["order_number_seperator"].join(k.split(args["order_number_seperator"])[1:]).strip(" ")
         
+        page_ref = last_page_index + 1
+        
         # Test if it's a file or a directory
         if len(v) > 0:
             # It's a non-empty dir (pages/folders)
             path_list.append(k)
             
-            print(ident + bm_name + pagenum_sep + str(last_page_index + 1))
+            print(ident + bm_name + pagenum_sep + str(page_ref + 1))
             ident += ident_str
             
             # Add bookmark w/ parent, save as potential parent
-            bm = output_pdf.addBookmark(bm_name, last_page_index, parent=bm_parent)
+            bm = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
             bookmark_list.append(bm)
             
             # Do recursion
@@ -206,10 +208,11 @@ def iterdict(d, base_path=""):
             filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
             if os.path.isdir(filename):
                 # It's an empty directory, make an "empty" bookmark (no children or pages)
-                page_ref = last_page_index
+                
                 
                 #TODO: Make nested empty reference next page, EVEN UPWARDS
                 #TODO: This currently references the previous page (not next like it should) if it's the last in a child, need to reference next page, even in parents.
+                #TODO:     
                 
                 # Prevent referencing non-existent pages
                 page_ref = min(page_ref, num_pages - 1)
@@ -220,8 +223,8 @@ def iterdict(d, base_path=""):
                 temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
             else:
                 # It's a file
-                page_index = page_list.index(filename)
-                last_page_index = page_index + 1
+                page_index = page_list_files.index(filename)
+                last_page_index = page_index
 iterdict(page_dict, base_path=input_dir)
 
 # Save final PDF
