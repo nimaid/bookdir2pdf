@@ -15,6 +15,9 @@ else:
     PROG_PATH = os.path.dirname(PROG_FILE)
     PATH = PROG_PATH
 
+# Get path that the command was called from
+COMMAND_PATH = Path().absolute()
+
 # Parse arguments before running main program
 def dir_path(string):
     if os.path.isdir(string):
@@ -30,8 +33,6 @@ ap.add_argument("-o", "--output_file", type=str, default=None,
 ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names (like '.' or ')')")
 args = vars(ap.parse_args())
-
-COMMAND_PATH = Path().absolute()
 
 input_dir = args["input_dir"]
 # Resolve input dir into absolute path (relative to working directory!)
@@ -150,6 +151,7 @@ output_pdf = PdfFileWriter()
 
 input_pdf_file = open(temp_pdf, 'rb')
 input_pdf = PdfFileReader(input_pdf_file)
+num_pages = input_pdf.getNumPages()
 for p in range(input_pdf.numPages):
     output_pdf.addPage(input_pdf.getPage(p))
 
@@ -188,7 +190,7 @@ def iterdict(d, base_path=""):
             print(ident + bm_name + pagenum_sep + str(last_page_index + 1))
             ident += ident_str
             
-            # Add bookmark w/ parent
+            # Add bookmark w/ parent, save as potential parent
             bm = output_pdf.addBookmark(bm_name, last_page_index, parent=bm_parent)
             bookmark_list.append(bm)
             
@@ -205,10 +207,20 @@ def iterdict(d, base_path=""):
                 filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
             if os.path.isdir(filename):
                 # It's an empty directory, make an "empty" bookmark (no children or pages)
-                print(ident + bm_name + pagenum_sep + str(last_page_index + 1))
+                
+                page_ref = last_page_index
                 #TODO: Make nested empty reference next page, EVEN UPWARDS
                 #TODO: This currently references the previous page (not next like it should) if it's the last in a child, need to reference next page, even in parents.
-                temp = output_pdf.addBookmark(bm_name, last_page_index, parent=bm_parent)
+                
+                # Prevent referencing non-existent pages
+                if page_ref > num_pages - 1:
+                    # Past last page, reference last page
+                    page_ref = num_pages - 1
+                
+                print(ident + bm_name + pagenum_sep + str(page_ref + 1))
+                
+                # Add bookmark w/ parent, abandon as potential parent
+                temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
             else:
                 # It's a file
                 page_index = page_list.index(filename)
