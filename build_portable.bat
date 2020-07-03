@@ -23,11 +23,11 @@ del /f /s /q "%RELEASEDIR%" 1>nul 2>&1
 rmdir /s /q "%RELEASEDIR%" 1>nul 2>&1
 
 echo Building portable EXE...
-call conda run -n nested-pdf-merge_build pyinstaller ^
+call conda run -n bookdir2pdf_build pyinstaller ^
     --noconfirm ^
     --onefile ^
     --icon=icon.ico ^
-    nested-pdf-merge.py
+    bookdir2pdf.py
 if errorlevel 1 goto ERROR
 
 del /f /s /q "%BUILDDIR%" 1>nul 2>&1

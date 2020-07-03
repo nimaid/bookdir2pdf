@@ -1,11 +1,11 @@
-# nested-pdf-merge
+# bookdir2pdf
 Merges a directory structure of images into a PDF with nested bookmarks.
 
 
 
 The PDF here was made using:
 
-`./nested-pdf-merge.py -i test_dir/ -s "."`
+`./bookdir2pdf.py -i test_dir/ -s "."`
 
 The `"."` is what seperates the ordering numbers from the bookmark name in the directory name.
 

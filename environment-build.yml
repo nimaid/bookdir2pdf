@@ -1,4 +1,4 @@
-name: nested-pdf-merge_build
+name: bookdir2pdf_build
 channels:
   - defaults
 dependencies:
