@@ -14,8 +14,6 @@ else:
     PROG_PATH = os.path.dirname(PROG_FILE)
     PATH = PROG_PATH
 
-#TODO: Use 'PROG_PATH' if files are relative paths to .exe
-
 # Parse arguments before running main program
 def dir_path(string):
     if os.path.isdir(string):
@@ -63,7 +61,6 @@ print(output_file_name)
 # Do main imports
 from fpdf import FPDF
 from PIL import Image
-from functools import reduce
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
 from pathlib import Path
@@ -108,6 +105,7 @@ for p in range(input_pdf.numPages):
     output_pdf.addPage(input_pdf.getPage(p))
 
 # Add nested bookmarks from page_dict
+#TODO: Add bookmarks for empty folders
 print()
 print("Creating nested bookmarks...")
 ident = ""
@@ -122,7 +120,6 @@ def iterdict(d, base_path=""):
 
     for k, v in d.items():        
         if len(v) > 0:
-            #TODO: Strip leading numbers more dynamically
             if args["order_number_seperator"] == None:
                 bm_name = k
             else:
