@@ -207,7 +207,7 @@ def iterdict(d, base_path=""):
             # Either it's a file or an empty (placeholder) dir
             filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
             if os.path.isdir(filename):
-                # It's an empty directory, make an "empty" bookmark (no children or pages)
+                # It's an empty directory, make an "empty" bookmark (no pages, references next page)
                 
                 
                 #TODO: Make nested empty reference next page, EVEN UPWARDS
@@ -239,14 +239,18 @@ def iterdict(d, base_path=""):
                 #TODO:         if dir is not fully empty (contains subdirs):
                 #TODO:             bookmark_list.append(bm)
                 
+                #!!!!!!!!! NEW !!!!!!!!!#
+                #^^^^^^^^^ NEW ^^^^^^^^^#
                 
-                # Prevent referencing non-existent pages
-                page_ref = min(page_ref, num_pages - 1)
+                # #!!!!!!!!! OLD !!!!!!!!!#
+                # # Prevent referencing non-existent pages
+                # page_ref = min(page_ref, num_pages - 1)
                 
-                print(ident + bm_name + pagenum_sep + str(page_ref + 1))
+                # print(ident + bm_name + pagenum_sep + str(page_ref + 1))
                 
-                # Add bookmark w/ parent, abandon as potential parent
-                temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                # # Add bookmark w/ parent, abandon as potential parent
+                # temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                # #^^^^^^^^^ OLD ^^^^^^^^^#
             else:
                 # It's a file
                 page_index = page_list_files.index(filename)
