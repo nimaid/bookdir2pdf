@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse, os, sys
+from pathlib import Path
 
 # Test if this is a PyInstaller executable or a .py file
 if getattr(sys, 'frozen', False):
@@ -30,13 +31,20 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names (like '.' or ')')")
 args = vars(ap.parse_args())
 
-if not os.path.isabs(args["input_dir"]):
-    input_dir = os.path.join(PROG_PATH, args["input_dir"])
-else:
-    input_dir = args["input_dir"]
+COMMAND_PATH = Path().absolute()
+
+input_dir = args["input_dir"]
+# Resolve input dir into absolute path (relative to working directory!)
+if not os.path.isabs(input_dir):
+    input_dir_split = input_dir.split(os.path.sep)
+    if input_dir_split[0] == os.path.curdir:
+        input_dir = os.path.sep.join(input_dir_split[1:])
+    input_dir = os.path.join(COMMAND_PATH, input_dir)
+
+#TODO: REMOVE THIS
+print(input_dir)
 
 input_dir_name = input_dir.strip(os.path.sep).split(os.path.sep)[-1]
-
 
 if args["output_file"] == None:
     output_file = input_dir + os.path.extsep + "pdf"
@@ -59,7 +67,6 @@ from fpdf import FPDF
 from PIL import Image
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
-from pathlib import Path
 
 print()
 print("Scanning input directory...")
@@ -76,7 +83,6 @@ valid_exts += ignored_file_exts
 
 # Save image paths (and empty/ignored-file dirs) paths to ordered list
 page_list = list()
-dir_list = list()
 for p in input_dir_list:
     if os.path.isfile(p):
         # Check if it's an invalid extention, and if so, fully ignore it
@@ -92,8 +98,25 @@ for p in input_dir_list:
             
         page_list.append(p)
     elif os.path.isdir(p):
-        #TODO: Test if it's empty or contains only ignored files
-        dir_list.append(p)
+        # Get files and directories inside p
+        p_list = [str(x) for x in sorted(Path(p).glob('*'))]
+        p_dir_list = [x for x in p_list if os.path.isdir(x)]
+        p_file_list = [x for x in p_list if os.path.isfile(x)]
+        
+        # Make ignored file list
+        p_file_list_ignored = list()
+        for x in p_file_list:
+            x_ext = os.path.splitext(x)[-1].lower()
+            if x_ext not in ignored_file_exts:
+                p_file_list_ignored.append(x)
+        
+        # Test if it's empty or contains only ignored files
+        if len(p_dir_list) <= 0 and len(p_file_list_ignored) <= 0:
+            # Add path (used to make "empty" bookmarks)
+            page_list.append(p)
+
+# Make page_list but with only files
+page_list_files = [p for p in page_list if os.path.isfile(p)]
 
 # Create nested ordered dictionary from list
 page_dict = OrderedDict()
@@ -106,7 +129,7 @@ for p in page_list:
         current_level = current_level[part]
 
 # Get size from first page
-cover = Image.open(page_list[0])
+cover = Image.open(page_list_files[0])
 width, height = cover.size
 
 # Create PDF from page_list(no bookmarks)
@@ -114,7 +137,7 @@ print()
 print("Adding images to PDF...")
 temp_pdf = os.path.join(output_file_dir, "temp_" + output_file_name)
 pdf = FPDF(unit = "pt", format = [width, height])
-for page in page_list:
+for page in page_list_files:
     #TODO: Process with blur+sharpen
     #TODO: Process with adaptive threshold
     print("Adding page: " + page)
@@ -134,7 +157,6 @@ for p in range(input_pdf.numPages):
     output_pdf.addPage(input_pdf.getPage(p))
 
 # Add nested bookmarks from page_dict
-#TODO: Add bookmarks for empty folders
 print()
 print("Creating nested bookmarks...")
 ident = ""
@@ -143,31 +165,38 @@ pagenum_sep = "\t\tPage #"
 last_page_index = 0
 path_list = list()
 bookmark_list = list()
+#TODO: Fix printing
 def iterdict(d, base_path=""):
     global ident
     global path_list
     global last_page_index
 
-    for k, v in d.items():        
+    for k, v in d.items():  
+        # Get parent bookmark
+        if len(bookmark_list) > 0:
+            bm_parent = bookmark_list[-1]
+        else:
+            bm_parent = None
+        
+        # Remove leading order numbers from dir name (if applicable)
+        if args["order_number_seperator"] == None:
+            bm_name = k
+        else:
+            bm_name = args["order_number_seperator"].join(k.split(args["order_number_seperator"])[1:]).strip(" ")
+        
+        # Test if it's a file or a directory
         if len(v) > 0:
-            if args["order_number_seperator"] == None:
-                bm_name = k
-            else:
-                bm_name = args["order_number_seperator"].join(k.split(args["order_number_seperator"])[1:]).strip(" ")
+            # It's a non-empty dir
+            path_list.append(k)
+            
             print(ident + bm_name + pagenum_sep + str(last_page_index + 1))
             ident += ident_str
             
-            path_list.append(k)
-            
             # Add bookmark w/ parent
-            if len(bookmark_list) > 0:
-                bm_parent = bookmark_list[-1]
-            else:
-                bm_parent = None
-            
             bm = output_pdf.addBookmark(bm_name, last_page_index, parent=bm_parent)
             bookmark_list.append(bm)
             
+            # Do recursion
             iterdict(v, base_path=base_path)
             
             temp = bookmark_list.pop()
@@ -175,10 +204,18 @@ def iterdict(d, base_path=""):
             
             ident = ident[:-len(ident_str)]
         else:
-            filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
-            page_index = page_list.index(filename)
-            last_page_index = page_index + 1
-            #print(ident + k + "\tPage #" + str(page_index + 1))
+            # Either it's a file or an empty (placeholder) dir
+            if os.path.isabs(input_dir):
+                filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
+            if os.path.isdir(filename):
+                # It's an empty directory, make an "empty" bookmark (no children or pages)
+                print(ident + bm_name + pagenum_sep + str(last_page_index + 1))
+                #TODO: Make nested empty reference next page, EVEN UPWARDS
+                temp = output_pdf.addBookmark(bm_name, last_page_index, parent=bm_parent)
+            else:
+                # It's a file
+                page_index = page_list.index(filename)
+                last_page_index = page_index + 1
 iterdict(page_dict, base_path=input_dir)
 
 # Save final PDF
