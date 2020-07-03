@@ -64,6 +64,11 @@ from pathlib import Path
 # Walk though folder structure (recursive alphabetical, mixed files/folders)
 # Save image paths to ordered list
 page_list = [str(p) for p in sorted(Path(input_dir).glob('**/*')) if p.is_file()]
+
+# Ignore certain files
+ignored_file_exts = [".ignore", ".db"]
+page_list = [x for x in page_list if os.path.splitext(x)[-1].lower() not in ignored_file_exts]
+
 # Create nested ordered dictionary from list
 page_dict = OrderedDict()
 for p in page_list:
