@@ -228,12 +228,17 @@ def iterdict(d, base_path=""):
                 #TODO:     So I should do the following:
                 #TODO:         if dir is recursively empty/ignored:
                 #TODO:             if dir is not a subdir of an empty_parent:
+                #TODO:                 # This is the main parent
                 #TODO:                 page_ref += 1
                 #TODO:                 empty_parents.append(dir)
-                #TODO:             bm = addbookmark(dir name, page_ref)
-                #TODO:             if dir value length is > 0, meaning it's not a fully empty dir
-                #TODO:                 bookmark_list.append(bm)
+                #TODO:                 # Now it's subdirs won't increment here in the future
                 #TODO:                 
+                #TODO:         min(page_ref, num_pages - 1) # Limit to last page
+                #TODO:         print
+                #TODO:         bm = addbookmark(dir name, page_ref)
+                #TODO:         if dir is not fully empty (contains subdirs):
+                #TODO:             bookmark_list.append(bm)
+                
                 
                 # Prevent referencing non-existent pages
                 page_ref = min(page_ref, num_pages - 1)
