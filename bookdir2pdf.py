@@ -94,10 +94,6 @@ for p in input_dir_list:
     elif os.path.isdir(p):
         #TODO: Test if it's empty or contains only ignored files
         dir_list.append(p)
-        
-# Ignore certain files
-#TODO: remove when above is done
-page_list = [x for x in page_list if os.path.splitext(x)[-1].lower() not in ignored_file_exts]
 
 # Create nested ordered dictionary from list
 page_dict = OrderedDict()

@@ -125,3 +125,6 @@ dmypy.json
 .pyre/
 
 __release__/
+
+**/Thumbs.db
+**/thumbs.db
