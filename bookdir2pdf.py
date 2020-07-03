@@ -41,9 +41,6 @@ if not os.path.isabs(input_dir):
         input_dir = os.path.sep.join(input_dir_split[1:])
     input_dir = os.path.join(COMMAND_PATH, input_dir)
 
-#TODO: REMOVE THIS
-print(input_dir)
-
 input_dir_name = input_dir.strip(os.path.sep).split(os.path.sep)[-1]
 
 if args["output_file"] == None:
@@ -165,7 +162,6 @@ pagenum_sep = "\t\tPage #"
 last_page_index = 0
 path_list = list()
 bookmark_list = list()
-#TODO: Fix printing
 def iterdict(d, base_path=""):
     global ident
     global path_list
@@ -211,6 +207,7 @@ def iterdict(d, base_path=""):
                 # It's an empty directory, make an "empty" bookmark (no children or pages)
                 print(ident + bm_name + pagenum_sep + str(last_page_index + 1))
                 #TODO: Make nested empty reference next page, EVEN UPWARDS
+                #TODO: This currently references the previous page (not next like it should) if it's the last in a child, need to reference next page, even in parents.
                 temp = output_pdf.addBookmark(bm_name, last_page_index, parent=bm_parent)
             else:
                 # It's a file
