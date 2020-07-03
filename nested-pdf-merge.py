@@ -126,7 +126,6 @@ def iterdict(d, base_path=""):
                 bm_name = args["order_number_seperator"].join(k.split(args["order_number_seperator"])[1:]).strip(" ")
             print(ident + bm_name + "\tPage #" + str(last_page_index + 1))
             ident += ident_str
-            ident += ident_str
             
             path_list.append(k)
             
