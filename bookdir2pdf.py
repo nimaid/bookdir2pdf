@@ -35,6 +35,7 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
 args = vars(ap.parse_args())
 
 input_dir = args["input_dir"]
+input_dir = os.path.normpath(input_dir)
 # Resolve input dir into absolute path (relative to working directory!)
 if not os.path.isabs(input_dir):
     input_dir_split = input_dir.split(os.path.sep)
@@ -240,17 +241,18 @@ def iterdict(d, base_path=""):
                 #TODO:             bookmark_list.append(bm)
                 
                 #!!!!!!!!! NEW !!!!!!!!!#
+                
                 #^^^^^^^^^ NEW ^^^^^^^^^#
                 
-                # #!!!!!!!!! OLD !!!!!!!!!#
-                # # Prevent referencing non-existent pages
-                # page_ref = min(page_ref, num_pages - 1)
+                #!!!!!!!!! OLD !!!!!!!!!#
+                # Prevent referencing non-existent pages
+                page_ref = min(page_ref, num_pages - 1)
                 
-                # print(ident + bm_name + pagenum_sep + str(page_ref + 1))
+                print(ident + bm_name + pagenum_sep + str(page_ref + 1))
                 
-                # # Add bookmark w/ parent, abandon as potential parent
-                # temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
-                # #^^^^^^^^^ OLD ^^^^^^^^^#
+                # Add bookmark w/ parent, abandon as potential parent
+                temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                #^^^^^^^^^ OLD ^^^^^^^^^#
             else:
                 # It's a file
                 page_index = page_list_files.index(filename)
