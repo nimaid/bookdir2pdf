@@ -184,7 +184,7 @@ def iterdict(d, base_path=""):
         
         # Test if it's a file or a directory
         if len(v) > 0:
-            # It's a non-empty dir
+            # It's a non-empty dir (pages/folders)
             path_list.append(k)
             
             print(ident + bm_name + pagenum_sep + str(last_page_index + 1))
@@ -203,19 +203,16 @@ def iterdict(d, base_path=""):
             ident = ident[:-len(ident_str)]
         else:
             # Either it's a file or an empty (placeholder) dir
-            if os.path.isabs(input_dir):
-                filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
+            filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
             if os.path.isdir(filename):
                 # It's an empty directory, make an "empty" bookmark (no children or pages)
-                
                 page_ref = last_page_index
+                
                 #TODO: Make nested empty reference next page, EVEN UPWARDS
                 #TODO: This currently references the previous page (not next like it should) if it's the last in a child, need to reference next page, even in parents.
                 
                 # Prevent referencing non-existent pages
-                if page_ref > num_pages - 1:
-                    # Past last page, reference last page
-                    page_ref = num_pages - 1
+                page_ref = min(page_ref, num_pages - 1)
                 
                 print(ident + bm_name + pagenum_sep + str(page_ref + 1))
                 
