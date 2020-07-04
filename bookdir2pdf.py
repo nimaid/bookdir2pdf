@@ -79,7 +79,6 @@ if adaptive:
     purify = True
 
 # Do main imports
-from fpdf import FPDF
 from PIL import Image
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
@@ -137,8 +136,8 @@ for p in input_dir_list:
 page_list_files = [p for p in page_list if os.path.isfile(p)]
 
 # Get size from first page
-cover = Image.open(page_list_files[0])
-width, height = cover.size
+with Image.open(page_list_files[0]) as cover:
+    width, height = cover.size
 
 # Get number of pages
 num_pages = len(page_list_files)
@@ -164,7 +163,7 @@ if not args["table_of_contents"]:
     print()
     print("Adding images to PDF...")
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
-    pdf = FPDF(unit = "pt", format = [width, height])
+    page_im_list = list()
     for page in page_list_files:
         print("Adding page: " + page)
         page_im = cv2.imread(page)
@@ -192,12 +191,12 @@ if not args["table_of_contents"]:
         pil_page_im = Image.fromarray(thresh)
         
         # Add image
-        pdf.add_page()
-        pdf.image(pil_page_im, 0, 0)
-        pil_page_im.close()
+        page_im_list.append(pil_page_im)
         
     print("Saving temporary PDF '{}'".format(temp_pdf))
-    pdf.output(temp_pdf, "F")
+    first_im = page_im_list[0]
+    rest_im = page_im_list[1:]
+    first_im.save(temp_pdf, "PDF", resolution=100, save_all=True, append_images=rest_im)
 
     # Load PDF into PyPDF2
     print()
