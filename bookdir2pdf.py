@@ -34,6 +34,8 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names (like '.' or ')')")
 ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
+ap.add_argument("-p", "--purify", action="store_true",
+    help="purify scanned B&W page (greyscale, sharpen, adaptive threshold)")
 args = vars(ap.parse_args())
 
 input_dir = args["input_dir"]
@@ -63,11 +65,17 @@ else:
 
 output_file_dir, output_file_name = os.path.split(output_file)
 
+# Do not purify if --table_of_contents is set
+purify = args["purify"]
+if args["table_of_contents"]:
+    purify = False
+
 # Do main imports
 from fpdf import FPDF
 from PIL import Image
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
+import shutil
 
 print()
 print("Scanning input directory...")
@@ -120,6 +128,13 @@ for p in input_dir_list:
 # Make page_list but with only files
 page_list_files = [p for p in page_list if os.path.isfile(p)]
 
+# Get size from first page
+cover = Image.open(page_list_files[0])
+width, height = cover.size
+
+# Get number of pages
+num_pages = len(page_list_files)
+
 # Create nested ordered dictionary from list
 page_dict = OrderedDict()
 for p in page_list:
@@ -130,25 +145,22 @@ for p in page_list:
             current_level[part] = OrderedDict()
         current_level = current_level[part]
 
-# Get size from first page
-cover = Image.open(page_list_files[0])
-width, height = cover.size
-
-# Get number of pages
-num_pages = len(page_list_files)
+# Prefix to prepend to temporary file
+temp_name_prepend = "__temp__"
 
 if not args["table_of_contents"]:
     # Create PDF from page_list(no bookmarks)
     print()
     print("Adding images to PDF...")
-    temp_pdf = os.path.join(output_file_dir, "temp_" + output_file_name)
+    temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     pdf = FPDF(unit = "pt", format = [width, height])
     for page in page_list_files:
-        #TODO: Process with blur+sharpen
-        #TODO: Process with adaptive threshold
         print("Adding page: " + page)
+        page_im = Image.open(page)
+        #TODO:     Process with sharpen
+        #TODO:     Process with adaptive threshold
         pdf.add_page()
-        pdf.image(page, 0, 0)
+        pdf.image(page_im, 0, 0)
     print("Saving temporary PDF '{}'".format(temp_pdf))
     pdf.output(temp_pdf, "F")
 
@@ -158,8 +170,7 @@ if not args["table_of_contents"]:
     output_pdf = PdfFileWriter()
     input_pdf_file = open(temp_pdf, 'rb')
     input_pdf = PdfFileReader(input_pdf_file)
-    for p in range(input_pdf.numPages):
-        output_pdf.addPage(input_pdf.getPage(p))
+    output_pdf.appendPagesFromReader(input_pdf)
 
 # Add nested bookmarks from page_dict
 print()
@@ -183,6 +194,7 @@ def iterdict(d, base_path="", empty_parents_in=list()):
 
     for k, v in d.items(): 
         filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
+        filename = os.path.normpath(filename)
         
         # Get parent bookmark
         if len(bookmark_list) > 0:

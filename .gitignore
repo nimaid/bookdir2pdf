@@ -128,3 +128,6 @@ __release__/
 
 **/Thumbs.db
 **/thumbs.db
+
+**/__temp__*
+**/__temp__*/**

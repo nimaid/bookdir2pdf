@@ -6,6 +6,6 @@ dependencies:
   - pip
   - pip:
     - PyPDF2
-    - fpdf
+    - git+https://github.com/pennersr/pyfpdf.git@feat-pillow
     - Pillow
     - pyinstaller
