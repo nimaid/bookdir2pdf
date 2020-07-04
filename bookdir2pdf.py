@@ -36,7 +36,7 @@ ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", const=170, default=None, action="store", nargs="?", type=int, 
     help="purify scanned B&W page ( greyscale, sharpen, threshold [default=170] )")
-ap.add_argument("-a", "--adaptive_purify", action="store_true",
+ap.add_argument("-a", "--purify_adaptive", action="store_true",
     help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold )")
 args = vars(ap.parse_args())
 
@@ -191,14 +191,17 @@ if args["purify"]:
                 # Make greyscale
                 gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
                 
-                # Sharpen
-                sharpen = cv2.GaussianBlur(gray, (0,0), 3)
+                # Sharpen (USM)
+                usm_blur = 3
+                sharpen = cv2.GaussianBlur(gray, (0,0), usm_blur)
                 sharpen = cv2.addWeighted(gray, 1.5, sharpen, -0.5, 0)
                 
                 # Apply threshold
                 if adaptive:
                     # Adaptive
-                    thresh = cv2.adaptiveThreshold(sharpen, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 15)
+                    at_block_size = 21
+                    at_sub_const = 15
+                    thresh = cv2.adaptiveThreshold(sharpen, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, at_block_size, at_sub_const)
                 else:
                     # Normal
                     temp, thresh = cv2.threshold(sharpen, thresh_setting, 255, cv2.THRESH_BINARY)
