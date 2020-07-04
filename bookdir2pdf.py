@@ -140,44 +140,45 @@ if args["purify"]:
         elif os.path.isfile(final_input_dir):
             os.remove(final_input_dir)
     
-    # Make temp dir
-    Path(final_input_dir).mkdir(parents=True)
-    
-    # Process image files
+    # Create new page_list
     new_page_list = list()
+    new_page_list_dirs = list()
+    new_page_list_files = list()
     for p in page_list:
         # Make final_p (replace input_dir with final_input_dir)
         rel_p = os.path.relpath(p, input_dir)
         final_p = os.path.join(final_input_dir, rel_p)
-        final_p_dir = os.path.dirname(final_p)
-        
-        #TODO: Make dir with parents
-        Path(final_p_dir).mkdir(parents=True, exist_ok=True)
-        
+        new_page_list.append(final_p)
+        if os.path.isdir(p):
+            new_page_list_dirs.append(final_p)
+        else:
+            new_page_list_files.append(final_p)
+    
+    # Make all directories first
+    for p in new_page_list_dirs:
+        Path(p).mkdir(parents=True, exist_ok=True)
+    for p in new_page_list_files:
+        Path(os.path.dirname(p)).mkdir(parents=True, exist_ok=True)
+    
+    # Process image files
+    for x, p in enumerate(page_list):
+        final_p = new_page_list[x]
         if os.path.isfile(p):
             # It's an image file
-            #TODO TEMP: copy p to final_p
-            print("copy {} ----> {}".format(p, final_p))
-            shutil.copyfile(p, final_p)
+
             #TODO:     Process with sharpen
             #TODO:     Process with adaptive threshold
-            new_page_list.append(final_p)
-        else:
-            # It's a directory
-            new_page_list.append(final_p)
-        
-    
-    
-    
-    
+            
+            #TEMP: copy p to final_p
+            print("{} ----> {}".format(p, final_p))
+            shutil.copyfile(p, final_p)
+
     # Update page_list with new images/paths
     page_list = new_page_list
 else:
     # Do not purify
     final_input_dir = input_dir
-    final_input_dir_name = input_dir_name
-    #TODO: Replace with these below where needed for page dirs (NOT names and such)
-    
+    final_input_dir_name = input_dir_name   
 
 # Make page_list but with only files
 page_list_files = [p for p in page_list if os.path.isfile(p)]
@@ -243,6 +244,7 @@ def iterdict(d, base_path="", empty_parents_in=list()):
 
     for k, v in d.items(): 
         filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
+        filename = os.path.normpath(filename)
         
         # Get parent bookmark
         if len(bookmark_list) > 0:
@@ -348,3 +350,8 @@ if not args["table_of_contents"]:
     print("Deleting temporary PDF '{}'".format(temp_pdf))
     input_pdf_file.close()
     os.remove(temp_pdf)
+
+if args["purify"]:
+    print()
+    print("Delete temporary directory '{}'".format(final_input_dir))
+    shutil.rmtree(final_input_dir)
