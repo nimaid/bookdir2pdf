@@ -34,6 +34,8 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names (like '.' or ')')")
 ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
+ap.add_argument("-p", "--purify", action="store_true",
+    help="purify scanned B&W page (greyscale, sharpen, adaptive threshold)")
 args = vars(ap.parse_args())
 
 input_dir = args["input_dir"]
@@ -68,6 +70,7 @@ from fpdf import FPDF
 from PIL import Image
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
+import shutil
 
 print()
 print("Scanning input directory...")
@@ -117,8 +120,74 @@ for p in input_dir_list:
             # Add path (used to make "empty" bookmarks)
             page_list.append(p)
 
+# Prefix to prepend to temporary file/folder names
+temp_name_prepend = "__temp__"
+
+main_dir = os.path.sep.join(input_dir.strip(os.path.sep).split(os.path.sep)[:-1])
+
+# Run purification (save to temporary directory)
+if args["purify"]:
+    print()
+    print("Purifying pages...")
+    # Make temp directory name
+    final_input_dir_name = temp_name_prepend + input_dir_name
+    final_input_dir = os.path.join(main_dir, final_input_dir_name)
+    
+    # Delete temp dir (or file with same name) if it already exists
+    if os.path.exists(final_input_dir):
+        if os.path.isdir(final_input_dir):
+            shutil.rmtree(final_input_dir)
+        elif os.path.isfile(final_input_dir):
+            os.remove(final_input_dir)
+    
+    # Make temp dir
+    Path(final_input_dir).mkdir(parents=True)
+    
+    # Process image files
+    new_page_list = list()
+    for p in page_list:
+        # Make final_p (replace input_dir with final_input_dir)
+        rel_p = os.path.relpath(p, input_dir)
+        final_p = os.path.join(final_input_dir, rel_p)
+        final_p_dir = os.path.dirname(final_p)
+        
+        #TODO: Make dir with parents
+        Path(final_p_dir).mkdir(parents=True, exist_ok=True)
+        
+        if os.path.isfile(p):
+            # It's an image file
+            #TODO TEMP: copy p to final_p
+            print("copy {} ----> {}".format(p, final_p))
+            shutil.copyfile(p, final_p)
+            #TODO:     Process with sharpen
+            #TODO:     Process with adaptive threshold
+            new_page_list.append(final_p)
+        else:
+            # It's a directory
+            new_page_list.append(final_p)
+        
+    
+    
+    
+    
+    # Update page_list with new images/paths
+    page_list = new_page_list
+else:
+    # Do not purify
+    final_input_dir = input_dir
+    final_input_dir_name = input_dir_name
+    #TODO: Replace with these below where needed for page dirs (NOT names and such)
+    
+
 # Make page_list but with only files
 page_list_files = [p for p in page_list if os.path.isfile(p)]
+
+# Get size from first page
+cover = Image.open(page_list_files[0])
+width, height = cover.size
+
+# Get number of pages
+num_pages = len(page_list_files)
 
 # Create nested ordered dictionary from list
 page_dict = OrderedDict()
@@ -130,22 +199,13 @@ for p in page_list:
             current_level[part] = OrderedDict()
         current_level = current_level[part]
 
-# Get size from first page
-cover = Image.open(page_list_files[0])
-width, height = cover.size
-
-# Get number of pages
-num_pages = len(page_list_files)
-
 if not args["table_of_contents"]:
     # Create PDF from page_list(no bookmarks)
     print()
     print("Adding images to PDF...")
-    temp_pdf = os.path.join(output_file_dir, "temp_" + output_file_name)
+    temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     pdf = FPDF(unit = "pt", format = [width, height])
     for page in page_list_files:
-        #TODO: Process with blur+sharpen
-        #TODO: Process with adaptive threshold
         print("Adding page: " + page)
         pdf.add_page()
         pdf.image(page, 0, 0)
@@ -275,7 +335,7 @@ def iterdict(d, base_path="", empty_parents_in=list()):
                 # It's a file
                 page_index = page_list_files.index(filename)
                 last_page_index = page_index
-iterdict(page_dict, base_path=input_dir)
+iterdict(page_dict, base_path=final_input_dir)
 
 if not args["table_of_contents"]:
     # Save final PDF
