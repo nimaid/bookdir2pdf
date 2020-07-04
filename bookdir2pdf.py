@@ -353,4 +353,6 @@ if not args["table_of_contents"]:
 if args["purify"]:
     print()
     print("Delete temporary directory '{}'".format(final_input_dir))
+    # This fails because the jpgs didn't close
+    # https://github.com/reingart/pyfpdf/blob/cb3340806c140b6e63eb4ce9d6230be84fba456e/fpdf/fpdf.py#L1816
     shutil.rmtree(final_input_dir)
