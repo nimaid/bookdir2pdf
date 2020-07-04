@@ -77,8 +77,9 @@ input_dir_list = [str(p) for p in sorted(Path(input_dir).glob('**/*'))]
 ignored_file_exts = [".ignore", ".db"]
 
 # Set valid image extentions
-valid_exts = [".jpg", ".jpeg", ".png", ".gif"]
-valid_exts += ignored_file_exts
+page_exts = [".jpg", ".jpeg", ".png", ".gif"]
+
+valid_exts = ignored_file_exts + page_exts
 
 # Save image paths (and empty/ignored-file dirs) paths to ordered list
 page_list = list()
@@ -106,7 +107,7 @@ for p in input_dir_list:
         p_file_list_ignored = list()
         for x in p_file_list:
             x_ext = os.path.splitext(x)[-1].lower()
-            if x_ext not in ignored_file_exts:
+            if (x_ext not in ignored_file_exts) and (x_ext in valid_exts):
                 p_file_list_ignored.append(x)
         
         # Test if it's empty or contains only ignored files
@@ -170,7 +171,9 @@ def iterdict(d, base_path=""):
     global path_list
     global last_page_index
 
-    for k, v in d.items():  
+    for k, v in d.items(): 
+        filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
+        
         # Get parent bookmark
         if len(bookmark_list) > 0:
             bm_parent = bookmark_list[-1]
@@ -187,7 +190,29 @@ def iterdict(d, base_path=""):
         
         # Test if it's a file or a directory
         if len(v) > 0:
-            # It's a non-empty dir (pages/folders)
+            # It's a not-fully-empty dir (pages/folders)
+            
+            # Get recursive list of files and folders
+            v_list = [str(x) for x in Path(filename).glob('**/*')]
+            v_dir_list = [x for x in v_list if os.path.isdir(x)]
+            v_file_list = [x for x in v_list if os.path.isfile(x) and os.path.splitext(x)[-1] in page_exts]
+            
+            # Deal with recursively empty folders
+            empty_parents = list()
+            if len(v_file_list) <= 0:
+                # Test if is a subdir of an empty_parent
+                is_subdir_of_empty_parent = False
+                for empty_parent in empty_parents:
+                    if os.path.commonpath([filename, empty_parent]) == empty_parent:
+                        is_subdir_of_empty_parent = True
+                if not is_subdir_of_empty_parent:
+                    # This is the main parent
+                    page_ref += 1
+                    empty_parents.append(dir)
+            
+            # Prevent referencing non-existent pages
+            page_ref = min(page_ref, num_pages - 1)
+            
             print(ident + bm_name + pagenum_sep + str(page_ref + 1))
             ident += ident_str
             
@@ -206,45 +231,11 @@ def iterdict(d, base_path=""):
             ident = ident[:-len(ident_str)]
         else:
             # Either it's a file or an empty (placeholder) dir
-            filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
             if os.path.isdir(filename):
-                # It's an empty directory, make an "empty" bookmark (no pages, references next page)
+                # It's a totally empty directory, make an "empty" bookmark (no pages/children, references next page)
                 
+                #TODO: Fix bug if this is the last in a nested dir (page -1 issue)
                 
-                #TODO: Make nested empty reference next page, EVEN UPWARDS
-                #TODO: This currently references the previous page (not next like it should) if it's the last in a child, need to reference next page, even in parents.
-                #TODO:     Isn't incrementing page unless a file is found
-                #TODO:     So this is happening to make first children have the same page as their parent
-                #TODO:     But I need to do something different for a last child in a parent that has no files (empty main and subdirs)
-                #TODO:     
-                #TODO:     So in the simple case of no dirs, just empty last child:
-                #TODO:         page_ref += 1
-                #TODO:     If there are empty dirs, then this would increment for each layer
-                #TODO:     So for only empty recursive subdirs:
-                #TODO:         for the first child:
-                #TODO:             page_ref += 1
-                #TODO:         for each of it's recursively empty children:
-                #TODO:             page_ref stays the same value as set above
-                #TODO:     
-                #TODO:     So I should do the following:
-                #TODO:         if dir is recursively empty/ignored:
-                #TODO:             if dir is not a subdir of an empty_parent:
-                #TODO:                 # This is the main parent
-                #TODO:                 page_ref += 1
-                #TODO:                 empty_parents.append(dir)
-                #TODO:                 # Now it's subdirs won't increment here in the future
-                #TODO:                 
-                #TODO:         min(page_ref, num_pages - 1) # Limit to last page
-                #TODO:         print
-                #TODO:         bm = addbookmark(dir name, page_ref)
-                #TODO:         if dir is not fully empty (contains subdirs):
-                #TODO:             bookmark_list.append(bm)
-                
-                #!!!!!!!!! NEW !!!!!!!!!#
-                
-                #^^^^^^^^^ NEW ^^^^^^^^^#
-                
-                #!!!!!!!!! OLD !!!!!!!!!#
                 # Prevent referencing non-existent pages
                 page_ref = min(page_ref, num_pages - 1)
                 
@@ -252,7 +243,6 @@ def iterdict(d, base_path=""):
                 
                 # Add bookmark w/ parent, abandon as potential parent
                 temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
-                #^^^^^^^^^ OLD ^^^^^^^^^#
             else:
                 # It's a file
                 page_index = page_list_files.index(filename)
