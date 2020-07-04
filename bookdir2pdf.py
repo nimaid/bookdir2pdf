@@ -38,6 +38,8 @@ ap.add_argument("-p", "--purify", action="store_true",
     help="purify scanned B&W page (greyscale, sharpen, adaptive threshold)")
 args = vars(ap.parse_args())
 
+#TODO: do not purify if --table_of_contents is set
+
 input_dir = args["input_dir"]
 input_dir = os.path.normpath(input_dir)
 # Resolve input dir into absolute path (relative to working directory!)
@@ -222,6 +224,7 @@ if not args["table_of_contents"]:
     output_pdf.appendPagesFromReader(input_pdf)
 
 # Add nested bookmarks from page_dict
+#TODO: Fix for Linux (Windows works for now)
 print()
 if args["table_of_contents"]:
     toc_title = input_dir_name + " - Table of Contents"
