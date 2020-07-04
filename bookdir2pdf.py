@@ -34,8 +34,8 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names (like '.' or ')')")
 ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
-ap.add_argument("-p", "--purify", action="store_true",
-    help="purify scanned B&W page (greyscale, sharpen, threshold)")
+ap.add_argument("-p", "--purify", const=170, default=None, action="store", nargs="?", type=int, 
+    help="purify scanned B&W page (greyscale, sharpen, threshold [default=170])")
 ap.add_argument("-a", "--adaptive_purify", action="store_true",
     help="purify scanned B&W page (greyscale, sharpen, adaptive threshold)")
 args = vars(ap.parse_args())
@@ -67,9 +67,13 @@ else:
 
 output_file_dir, output_file_name = os.path.split(output_file)
 
-# Do not purify if --table_of_contents is set
-purify = args["purify"]
+if args["purify"] != None:
+    purify = True
+    thresh_setting = args["purify"]
+
 adaptive = args["adaptive_purify"]
+
+# Do not purify if --table_of_contents is set
 if args["table_of_contents"]:
     purify = False
     adaptive = False
@@ -183,7 +187,7 @@ if args["purify"]:
             orig = page_im.copy()
             if purify:
                 #TODO: Fix wierd extra parent bookmmrks with purify option
-                print("\tPurifying {}...".format(p))
+                print("\tPurifying '{}'".format(p))
                 # Make greyscale
                 gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
                 
@@ -197,7 +201,7 @@ if args["purify"]:
                     thresh = cv2.adaptiveThreshold(sharpen, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 15)
                 else:
                     # Normal
-                    temp, thresh = cv2.threshold(sharpen, 127, 255, cv2.THRESH_BINARY)
+                    temp, thresh = cv2.threshold(sharpen, thresh_setting, 255, cv2.THRESH_BINARY)
                 
                 final_page_im = thresh
             else:
@@ -239,7 +243,6 @@ for p in page_list:
 if not args["table_of_contents"]:
     # Create PDF from page_list(no bookmarks)
     print()
-    print("Adding images to PDF...")
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     print("Saving temporary PDF '{}'".format(temp_pdf))
     with open(temp_pdf, "wb") as f:
