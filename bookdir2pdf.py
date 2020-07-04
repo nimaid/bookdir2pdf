@@ -179,13 +179,35 @@ if args["purify"]:
         final_p = new_page_list[x]
         if os.path.isfile(p):
             # It's an image file
-
-            #TODO:     Process with sharpen
-            #TODO:     Process with adaptive threshold
+            page_im = cv2.imread(p)
+            orig = page_im.copy()
+            if purify:
+                #TODO: Fix wierd extra parent bookmmrks with purify option
+                print("\tPurifying {}...".format(p))
+                # Make greyscale
+                gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+                
+                # Sharpen
+                sharpen = cv2.GaussianBlur(gray, (0,0), 3)
+                sharpen = cv2.addWeighted(gray, 1.5, sharpen, -0.5, 0)
+                
+                # Apply threshold
+                if adaptive:
+                    # Adaptive
+                    thresh = cv2.adaptiveThreshold(sharpen, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 15)
+                else:
+                    # Normal
+                    temp, thresh = cv2.threshold(sharpen, 127, 255, cv2.THRESH_BINARY)
+                
+                final_page_im = thresh
+            else:
+                final_page_im = orig
             
-            #TEMP: copy p to final_p
-            print("{} ----> {}".format(p, final_p))
-            shutil.copyfile(p, final_p)
+            # Convert OpenCV image to Pillow image
+            pil_page_im = Image.fromarray(final_page_im)
+            
+            # Save image
+            pil_page_im.save(final_p, "PNG")
 
     # Update page_list with new images/paths
     page_list = new_page_list
@@ -232,7 +254,6 @@ if not args["table_of_contents"]:
     output_pdf.appendPagesFromReader(input_pdf)
 
 # Add nested bookmarks from page_dict
-#TODO: Fix for Linux (Windows works for now)
 print()
 if args["table_of_contents"]:
     toc_title = input_dir_name + " - Table of Contents"
