@@ -171,7 +171,8 @@ else:
     print("Creating nested bookmarks...")
 ident = ""
 ident_str = "--- "
-pagenum_sep = "\t\tPage #"
+pagenum_pre = "Page #"
+pagenum_space = 5
 last_page_index = -1 # Because we want the next page to be 0
 path_list = list()
 bookmark_list = list()
@@ -222,7 +223,10 @@ def iterdict(d, base_path="", empty_parents_in=list()):
             # Prevent referencing non-existent pages
             page_ref = min(page_ref, num_pages - 1)
             
-            print(ident + bm_name + pagenum_sep + str(page_ref + 1))
+            
+            # Print row of ToC
+            page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
+            print(page_toc_prefix + ident + bm_name)
             ident += ident_str
             
             if not args["table_of_contents"]:
@@ -260,7 +264,9 @@ def iterdict(d, base_path="", empty_parents_in=list()):
                 # Prevent referencing non-existent pages
                 page_ref = min(page_ref, num_pages - 1)
                 
-                print(ident + bm_name + pagenum_sep + str(page_ref + 1))
+                # Print row of ToC
+                page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
+                print(page_toc_prefix + ident + bm_name)
                 
                 if not args["table_of_contents"]:
                     # Add bookmark w/ parent, abandon as potential parent
