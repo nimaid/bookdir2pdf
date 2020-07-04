@@ -34,7 +34,7 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names ( like '.' or ')' )")
 ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
-ap.add_argument("-p", "--purify", action="store", nargs="*", type=int, 
+ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=int, 
     help="purify scanned B&W page ( greyscale, sharpen [default=3], threshold [default=170] )")
 ap.add_argument("-pa", "--purify_adaptive", action="store_true",
     help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold )")
@@ -67,25 +67,29 @@ else:
 
 output_file_dir, output_file_name = os.path.split(output_file)
 
-# Get purify args
+if (args["purify"] != None) and (args["purify_adaptive"] != False):
+    raise argparse.ArgumentError("Can not use (--purify | -p) and (--purify_adaptive | -pa) at the same time.")
+
+# Test if/which purify flavor is being used
 if args["purify"] != None:
     purify = True
+    adaptive = False
     purify_args = args["purify"]
-else:
-    purify_args = ()
-
-adaptive = args["purify_adaptive"]
-
-# If adaptive, also purify
-if adaptive:
+elif args["purify_adaptive"] == True:
     purify = True
+    adaptive = True
+    purify_args = ()
+else:
+    purify = False
+    adaptive = False
+    purify_args = ()
 
 # Do not purify if --table_of_contents is set
 if args["table_of_contents"]:
     purify = False
     adaptive = False
 
-# Parse purify values
+# Parse purify sub-arguments (values)
 if purify:
     if len(purify_args) > 2:
         raise argparse.ArgumentError("Too many arguments, usage: --purify [THRESH] [SHARP]")
@@ -109,7 +113,7 @@ if adaptive:
     at_block_size = 21
     at_sub_const = 15
     
-    print("Will purify with a sharpening amount of {} and an adaptive threshold with a block size of {} and a constant subtraction of {}.".format(usm_blur, at_block_size, at_sub_const))
+    print("Will purify with a sharpening amount of {}, an adaptive threshold with a block size of {}, and a constant subtraction of {}.".format(usm_blur, at_block_size, at_sub_const))
 
 # Do main imports
 import img2pdf
@@ -173,7 +177,7 @@ temp_name_prepend = "__temp__"
 main_dir = os.path.sep.join(input_dir.rstrip(os.path.sep).split(os.path.sep)[:-1])
 
 # Run purification (save to temporary directory)
-if args["purify"]:
+if purify:
     print()
     print("Purifying pages...")
     # Make temp directory name
