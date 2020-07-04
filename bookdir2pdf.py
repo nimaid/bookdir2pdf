@@ -158,6 +158,9 @@ temp_name_prepend = "__temp__"
 
 if not args["table_of_contents"]:
     # Create PDF from page_list(no bookmarks)
+    # TODO: Pillow version messed up page images loaded (not path or order, probably refs?)
+    # TODO: Different for each: adaptive purify none
+    # TODO: Works great if passing pdf.image() a path, not pillow image
     print()
     print("Adding images to PDF...")
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
@@ -182,17 +185,17 @@ if not args["table_of_contents"]:
             else:
                 # Normal
                 temp, thresh = cv2.threshold(sharpen, 127, 255, cv2.THRESH_BINARY)
-            
-            final_page_im = thresh
         else:
-            final_page_im = orig
+            thresh = orig.copy()
         
         # Convert OpenCV image to Pillow image
-        pil_page_im = Image.fromarray(final_page_im)
+        pil_page_im = Image.fromarray(thresh)
         
         # Add image
         pdf.add_page()
         pdf.image(pil_page_im, 0, 0)
+        pil_page_im.close()
+        
     print("Saving temporary PDF '{}'".format(temp_pdf))
     pdf.output(temp_pdf, "F")
 
