@@ -36,7 +36,7 @@ ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", action="store", nargs="*", type=int, 
     help="purify scanned B&W page ( greyscale, sharpen [default=3], threshold [default=170] )")
-ap.add_argument("-a", "--purify_adaptive", action="store_true",
+ap.add_argument("-pa", "--purify_adaptive", action="store_true",
     help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold )")
 args = vars(ap.parse_args())
 
@@ -67,35 +67,44 @@ else:
 
 output_file_dir, output_file_name = os.path.split(output_file)
 
+# Get purify args
+if args["purify"] != None:
+    purify = True
+    purify_args = args["purify"]
+else:
+    purify_args = ()
+
 adaptive = args["purify_adaptive"]
 
-if args["purify"] != None:
-    if len(args["purify"]) > 2:
-        raise argparse.ArgumentError("Too many arguments, usage: --purify [THRESH] [SHARP]")
-        
+# If adaptive, also purify
+if adaptive:
     purify = True
-    
-    if len(args["purify"]) >= 1:
-        thresh_setting = args["purify"][0]
-    else:
-        thresh_setting = 170
-        
-    if len(args["purify"]) >= 2:
-        usm_blur = args["purify"][1]
-    else:
-        usm_blur = 3
-    
-    if not adaptive:
-        print("Will purify with a sharpening amount of {} and a threshold of {}.".format(usm_blur, thresh_setting))
 
 # Do not purify if --table_of_contents is set
 if args["table_of_contents"]:
     purify = False
     adaptive = False
 
-# If adaptive, also purify
+# Parse purify values
+if purify:
+    if len(purify_args) > 2:
+        raise argparse.ArgumentError("Too many arguments, usage: --purify [THRESH] [SHARP]")
+        
+    if len(purify_args) >= 1:
+        thresh_setting = purify_args[0]
+    else:
+        thresh_setting = 170
+        
+    if len(purify_args) >= 2:
+        usm_blur = purify_args[1]
+    else:
+        usm_blur = 3
+    
+    if not adaptive:
+        print("Will purify with a sharpening amount of {} and a threshold of {}.".format(usm_blur, thresh_setting))
+
+# Parse adaptive values
 if adaptive:
-    purify = True
     #TODO: Set from command line
     at_block_size = 21
     at_sub_const = 15

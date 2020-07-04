@@ -3,7 +3,8 @@ Merges a directory structure of images into a PDF with nested bookmarks.
 
 ```
 usage: bookdir2pdf.py [-h] -i INPUT_DIR [-o OUTPUT_FILE]
-                      [-s ORDER_NUMBER_SEPERATOR] [-t] [-p [PURIFY]] [-a]
+                      [-s ORDER_NUMBER_SEPERATOR] [-t]
+                      [-p [PURIFY [PURIFY ...]]] [-pa]
 
 Merge nested image direcotry into PDF with nested bookmarks.
 
@@ -18,10 +19,10 @@ optional arguments:
                         numbers from the bookmark names ( like '.' or ')' )
   -t, --table_of_contents
                         just scan directory and print table of contents
-  -p [PURIFY], --purify [PURIFY]
-                        purify scanned B&W page ( greyscale, sharpen,
-                        threshold [default=170] )
-  -a, --purify_adaptive
+  -p [PURIFY [PURIFY ...]], --purify [PURIFY [PURIFY ...]]
+                        purify scanned B&W page ( greyscale, sharpen
+                        [default=3], threshold [default=170] )
+  -pa, --purify_adaptive
                         purify scanned B&W page ( greyscale, sharpen, adaptive
                         threshold )
 ```
