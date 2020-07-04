@@ -79,7 +79,7 @@ if adaptive:
     purify = True
 
 # Do main imports
-from fpdf import FPDF
+import img2pdf
 from PIL import Image
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
@@ -219,14 +219,10 @@ if not args["table_of_contents"]:
     print()
     print("Adding images to PDF...")
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
-    pdf = FPDF(unit = "pt", format = [width, height])
-    for page in page_list_files:
-        print("Adding page: " + page)
-        pdf.add_page()
-        pdf.image(page, 0, 0)
     print("Saving temporary PDF '{}'".format(temp_pdf))
-    pdf.output(temp_pdf, "F")
-
+    with open(temp_pdf, "wb") as f:
+        f.write(img2pdf.convert(page_list_files))
+    
     # Load PDF into PyPDF2
     print()
     print("Loading temporary PDF into editing library...")

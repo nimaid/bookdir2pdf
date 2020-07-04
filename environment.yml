@@ -8,4 +8,4 @@ dependencies:
   - Pillow
   - pip:
     - PyPDF2
-    - git+https://github.com/nimaid/pyfpdf.git@fix-close-jpeg
+    - img2pdf
