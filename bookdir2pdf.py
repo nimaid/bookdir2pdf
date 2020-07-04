@@ -29,15 +29,15 @@ ap = argparse.ArgumentParser(description="Merge nested image direcotry into PDF 
 ap.add_argument("-i", "--input_dir", type=dir_path, required=True,
     help="path to nested image directory to merge")
 ap.add_argument("-o", "--output_file", type=str, default=None,
-    help="output file path (defaults to [input_dir].pdf)")
+    help="output file path ( defaults to [input_dir].pdf )")
 ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
-    help="the character used to seperate the direcotry ordering numbers from the bookmark names (like '.' or ')')")
+    help="the character used to seperate the direcotry ordering numbers from the bookmark names ( like '.' or ')' )")
 ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", const=170, default=None, action="store", nargs="?", type=int, 
-    help="purify scanned B&W page (greyscale, sharpen, threshold [default=170])")
+    help="purify scanned B&W page ( greyscale, sharpen, threshold [default=170] )")
 ap.add_argument("-a", "--adaptive_purify", action="store_true",
-    help="purify scanned B&W page (greyscale, sharpen, adaptive threshold)")
+    help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold )")
 args = vars(ap.parse_args())
 
 input_dir = args["input_dir"]

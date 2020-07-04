@@ -12,18 +12,18 @@ optional arguments:
   -i INPUT_DIR, --input_dir INPUT_DIR
                         path to nested image directory to merge
   -o OUTPUT_FILE, --output_file OUTPUT_FILE
-                        output file path (defaults to [input_dir].pdf)
+                        output file path ( defaults to [input_dir].pdf )
   -s ORDER_NUMBER_SEPERATOR, --order_number_seperator ORDER_NUMBER_SEPERATOR
                         the character used to seperate the direcotry ordering
-                        numbers from the bookmark names (like '.' or ')')
+                        numbers from the bookmark names ( like '.' or ')' )
   -t, --table_of_contents
                         just scan directory and print table of contents
   -p [PURIFY], --purify [PURIFY]
-                        purify scanned B&W page (greyscale, sharpen, threshold
-                        [default=170])
+                        purify scanned B&W page ( greyscale, sharpen,
+                        threshold [default=170] )
   -a, --adaptive_purify
-                        purify scanned B&W page (greyscale, sharpen, adaptive
-                        threshold)
+                        purify scanned B&W page ( greyscale, sharpen, adaptive
+                        threshold )
 ```
 
 The PDF here was made using:
