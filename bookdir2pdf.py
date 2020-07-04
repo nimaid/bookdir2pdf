@@ -233,7 +233,7 @@ num_pages = len(page_list_files)
 # Create nested ordered dictionary from list
 page_dict = OrderedDict()
 for p in page_list:
-    p = os.path.relpath(p, input_dir) # Make relative
+    p = os.path.relpath(p, final_input_dir) # Make relative
     current_level = page_dict
     for part in p.split(os.path.sep):
         if part not in current_level:
