@@ -38,6 +38,8 @@ ap.add_argument("-p", "--purify", action="store_true",
     help="purify scanned B&W page (greyscale, sharpen, adaptive threshold)")
 args = vars(ap.parse_args())
 
+#TODO: do not purify if --table_of_contents is set
+
 input_dir = args["input_dir"]
 input_dir = os.path.normpath(input_dir)
 # Resolve input dir into absolute path (relative to working directory!)
@@ -125,6 +127,66 @@ for p in input_dir_list:
             # Add path (used to make "empty" bookmarks)
             page_list.append(p)
 
+# Prefix to prepend to temporary file/folder names
+temp_name_prepend = "__temp__"
+
+main_dir = os.path.sep.join(input_dir.strip(os.path.sep).split(os.path.sep)[:-1])
+
+# Run purification (save to temporary directory)
+if args["purify"]:
+    print()
+    print("Purifying pages...")
+    # Make temp directory name
+    final_input_dir_name = temp_name_prepend + input_dir_name
+    final_input_dir = os.path.join(main_dir, final_input_dir_name)
+    
+    # Delete temp dir (or file with same name) if it already exists
+    if os.path.exists(final_input_dir):
+        if os.path.isdir(final_input_dir):
+            shutil.rmtree(final_input_dir)
+        elif os.path.isfile(final_input_dir):
+            os.remove(final_input_dir)
+    
+    # Create new page_list
+    new_page_list = list()
+    new_page_list_dirs = list()
+    new_page_list_files = list()
+    for p in page_list:
+        # Make final_p (replace input_dir with final_input_dir)
+        rel_p = os.path.relpath(p, input_dir)
+        final_p = os.path.join(final_input_dir, rel_p)
+        new_page_list.append(final_p)
+        if os.path.isdir(p):
+            new_page_list_dirs.append(final_p)
+        else:
+            new_page_list_files.append(final_p)
+    
+    # Make all directories first
+    for p in new_page_list_dirs:
+        Path(p).mkdir(parents=True, exist_ok=True)
+    for p in new_page_list_files:
+        Path(os.path.dirname(p)).mkdir(parents=True, exist_ok=True)
+    
+    # Process image files
+    for x, p in enumerate(page_list):
+        final_p = new_page_list[x]
+        if os.path.isfile(p):
+            # It's an image file
+
+            #TODO:     Process with sharpen
+            #TODO:     Process with adaptive threshold
+            
+            #TEMP: copy p to final_p
+            print("{} ----> {}".format(p, final_p))
+            shutil.copyfile(p, final_p)
+
+    # Update page_list with new images/paths
+    page_list = new_page_list
+else:
+    # Do not purify
+    final_input_dir = input_dir
+    final_input_dir_name = input_dir_name   
+
 # Make page_list but with only files
 page_list_files = [p for p in page_list if os.path.isfile(p)]
 
@@ -144,9 +206,6 @@ for p in page_list:
         if part not in current_level:
             current_level[part] = OrderedDict()
         current_level = current_level[part]
-
-# Prefix to prepend to temporary file
-temp_name_prepend = "__temp__"
 
 if not args["table_of_contents"]:
     # Create PDF from page_list(no bookmarks)
@@ -173,6 +232,7 @@ if not args["table_of_contents"]:
     output_pdf.appendPagesFromReader(input_pdf)
 
 # Add nested bookmarks from page_dict
+#TODO: Fix for Linux (Windows works for now)
 print()
 if args["table_of_contents"]:
     toc_title = input_dir_name + " - Table of Contents"
@@ -287,7 +347,7 @@ def iterdict(d, base_path="", empty_parents_in=list()):
                 # It's a file
                 page_index = page_list_files.index(filename)
                 last_page_index = page_index
-iterdict(page_dict, base_path=input_dir)
+iterdict(page_dict, base_path=final_input_dir)
 
 if not args["table_of_contents"]:
     # Save final PDF
@@ -300,3 +360,10 @@ if not args["table_of_contents"]:
     print("Deleting temporary PDF '{}'".format(temp_pdf))
     input_pdf_file.close()
     os.remove(temp_pdf)
+
+if args["purify"]:
+    print()
+    print("Delete temporary directory '{}'".format(final_input_dir))
+    # This fails because the jpgs didn't close
+    # https://github.com/reingart/pyfpdf/blob/cb3340806c140b6e63eb4ce9d6230be84fba456e/fpdf/fpdf.py#L1816
+    shutil.rmtree(final_input_dir)
