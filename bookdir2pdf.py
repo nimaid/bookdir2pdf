@@ -32,6 +32,8 @@ ap.add_argument("-o", "--output_file", type=str, default=None,
     help="output file path (defaults to [input_dir].pdf)")
 ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names (like '.' or ')')")
+ap.add_argument("-t", "--table_of_contents", action="store_true",
+    help="just scan directory and print table of contents")
 args = vars(ap.parse_args())
 
 input_dir = args["input_dir"]
@@ -132,34 +134,39 @@ for p in page_list:
 cover = Image.open(page_list_files[0])
 width, height = cover.size
 
-# Create PDF from page_list(no bookmarks)
-print()
-print("Adding images to PDF...")
-temp_pdf = os.path.join(output_file_dir, "temp_" + output_file_name)
-pdf = FPDF(unit = "pt", format = [width, height])
-for page in page_list_files:
-    #TODO: Process with blur+sharpen
-    #TODO: Process with adaptive threshold
-    print("Adding page: " + page)
-    pdf.add_page()
-    pdf.image(page, 0, 0)
-print("Saving temporary PDF '{}'".format(temp_pdf))
-pdf.output(temp_pdf, "F")
+# Get number of pages
+num_pages = len(page_list_files)
 
-# Load PDF into PyPDF2
-print()
-print("Loading temporary PDF into editing library...")
-output_pdf = PdfFileWriter()
+if not args["table_of_contents"]:
+    # Create PDF from page_list(no bookmarks)
+    print()
+    print("Adding images to PDF...")
+    temp_pdf = os.path.join(output_file_dir, "temp_" + output_file_name)
+    pdf = FPDF(unit = "pt", format = [width, height])
+    for page in page_list_files:
+        #TODO: Process with blur+sharpen
+        #TODO: Process with adaptive threshold
+        print("Adding page: " + page)
+        pdf.add_page()
+        pdf.image(page, 0, 0)
+    print("Saving temporary PDF '{}'".format(temp_pdf))
+    pdf.output(temp_pdf, "F")
 
-input_pdf_file = open(temp_pdf, 'rb')
-input_pdf = PdfFileReader(input_pdf_file)
-num_pages = input_pdf.getNumPages()
-for p in range(input_pdf.numPages):
-    output_pdf.addPage(input_pdf.getPage(p))
+    # Load PDF into PyPDF2
+    print()
+    print("Loading temporary PDF into editing library...")
+    output_pdf = PdfFileWriter()
+    input_pdf_file = open(temp_pdf, 'rb')
+    input_pdf = PdfFileReader(input_pdf_file)
+    for p in range(input_pdf.numPages):
+        output_pdf.addPage(input_pdf.getPage(p))
 
 # Add nested bookmarks from page_dict
 print()
-print("Creating nested bookmarks...")
+if args["table_of_contents"]:
+    print("Table of Contents")
+else:
+    print("Creating nested bookmarks...")
 ident = ""
 ident_str = "--- "
 pagenum_sep = "\t\tPage #"
@@ -216,16 +223,20 @@ def iterdict(d, base_path="", empty_parents_in=list()):
             print(ident + bm_name + pagenum_sep + str(page_ref + 1))
             ident += ident_str
             
-            # Add bookmark w/ parent, save as potential parent
-            bm = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
-            bookmark_list.append(bm)
+            if not args["table_of_contents"]:
+                # Add bookmark w/ parent, save as potential parent
+                bm = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                
+                # Add to bookmarks list
+                bookmark_list.append(bm)
             
             path_list.append(k)
             
             # Do recursion
             iterdict(v, base_path=base_path, empty_parents_in=empty_parents)
             
-            temp = bookmark_list.pop()
+            if not args["table_of_contents"]:
+                temp = bookmark_list.pop()
             temp = path_list.pop()
             
             ident = ident[:-len(ident_str)]
@@ -249,21 +260,23 @@ def iterdict(d, base_path="", empty_parents_in=list()):
                 
                 print(ident + bm_name + pagenum_sep + str(page_ref + 1))
                 
-                # Add bookmark w/ parent, abandon as potential parent
-                temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                if not args["table_of_contents"]:
+                    # Add bookmark w/ parent, abandon as potential parent
+                    temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
             else:
                 # It's a file
                 page_index = page_list_files.index(filename)
                 last_page_index = page_index
 iterdict(page_dict, base_path=input_dir)
 
-# Save final PDF
-print("Saving bookmarked PDF '{}'".format(output_file))
-with open(output_file, 'wb') as f:
-    output_pdf.write(f)
+if not args["table_of_contents"]:
+    # Save final PDF
+    print("Saving bookmarked PDF '{}'".format(output_file))
+    with open(output_file, 'wb') as f:
+        output_pdf.write(f)
 
-# Delete temporary PDF
-print()
-print("Deleting temporary PDF '{}'".format(temp_pdf))
-input_pdf_file.close()
-os.remove(temp_pdf)
+    # Delete temporary PDF
+    print()
+    print("Deleting temporary PDF '{}'".format(temp_pdf))
+    input_pdf_file.close()
+    os.remove(temp_pdf)
