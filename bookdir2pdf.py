@@ -79,10 +79,12 @@ if adaptive:
     purify = True
 
 # Do main imports
+from fpdf import FPDF
 from PIL import Image
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
 import cv2
+import shutil
 
 print()
 print("Scanning input directory...")
@@ -132,6 +134,66 @@ for p in input_dir_list:
             # Add path (used to make "empty" bookmarks)
             page_list.append(p)
 
+# Prefix to prepend to temporary file/folder names
+temp_name_prepend = "__temp__"
+
+main_dir = os.path.sep.join(input_dir.rstrip(os.path.sep).split(os.path.sep)[:-1])
+
+# Run purification (save to temporary directory)
+if args["purify"]:
+    print()
+    print("Purifying pages...")
+    # Make temp directory name
+    final_input_dir_name = temp_name_prepend + input_dir_name
+    final_input_dir = os.path.join(main_dir, final_input_dir_name)
+    
+    # Delete temp dir (or file with same name) if it already exists
+    if os.path.exists(final_input_dir):
+        if os.path.isdir(final_input_dir):
+            shutil.rmtree(final_input_dir)
+        elif os.path.isfile(final_input_dir):
+            os.remove(final_input_dir)
+    
+    # Create new page_list
+    new_page_list = list()
+    new_page_list_dirs = list()
+    new_page_list_files = list()
+    for p in page_list:
+        # Make final_p (replace input_dir with final_input_dir)
+        rel_p = os.path.relpath(p, input_dir)
+        final_p = os.path.join(final_input_dir, rel_p)
+        new_page_list.append(final_p)
+        if os.path.isdir(p):
+            new_page_list_dirs.append(final_p)
+        else:
+            new_page_list_files.append(final_p)
+    
+    # Make all directories first
+    for p in new_page_list_dirs:
+        Path(p).mkdir(parents=True, exist_ok=True)
+    for p in new_page_list_files:
+        Path(os.path.dirname(p)).mkdir(parents=True, exist_ok=True)
+    
+    # Process image files
+    for x, p in enumerate(page_list):
+        final_p = new_page_list[x]
+        if os.path.isfile(p):
+            # It's an image file
+
+            #TODO:     Process with sharpen
+            #TODO:     Process with adaptive threshold
+            
+            #TEMP: copy p to final_p
+            print("{} ----> {}".format(p, final_p))
+            shutil.copyfile(p, final_p)
+
+    # Update page_list with new images/paths
+    page_list = new_page_list
+else:
+    # Do not purify
+    final_input_dir = input_dir
+    final_input_dir_name = input_dir_name   
+
 # Make page_list but with only files
 page_list_files = [p for p in page_list if os.path.isfile(p)]
 
@@ -152,51 +214,18 @@ for p in page_list:
             current_level[part] = OrderedDict()
         current_level = current_level[part]
 
-# Prefix to prepend to temporary file
-temp_name_prepend = "__temp__"
-
 if not args["table_of_contents"]:
     # Create PDF from page_list(no bookmarks)
-    # TODO: Pillow version messed up page images loaded (not path or order, probably refs?)
-    # TODO: Different for each: adaptive purify none
-    # TODO: Works great if passing pdf.image() a path, not pillow image
     print()
     print("Adding images to PDF...")
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
-    page_im_list = list()
+    pdf = FPDF(unit = "pt", format = [width, height])
     for page in page_list_files:
         print("Adding page: " + page)
-        page_im = cv2.imread(page)
-        orig = page_im.copy()
-        if purify:
-            print("\tPurifying...")
-            # Make greyscale
-            gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
-            
-            # Sharpen
-            sharpen = cv2.GaussianBlur(gray, (0,0), 3)
-            sharpen = cv2.addWeighted(gray, 1.5, sharpen, -0.5, 0)
-            
-            # Apply threshold
-            if adaptive:
-                # Adaptive
-                thresh = cv2.adaptiveThreshold(sharpen, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 15)
-            else:
-                # Normal
-                temp, thresh = cv2.threshold(sharpen, 127, 255, cv2.THRESH_BINARY)
-        else:
-            thresh = orig.copy()
-        
-        # Convert OpenCV image to Pillow image
-        pil_page_im = Image.fromarray(thresh)
-        
-        # Add image
-        page_im_list.append(pil_page_im)
-        
+        pdf.add_page()
+        pdf.image(page, 0, 0)
     print("Saving temporary PDF '{}'".format(temp_pdf))
-    first_im = page_im_list[0]
-    rest_im = page_im_list[1:]
-    first_im.save(temp_pdf, "PDF", resolution=100, save_all=True, append_images=rest_im)
+    pdf.output(temp_pdf, "F")
 
     # Load PDF into PyPDF2
     print()
@@ -207,6 +236,7 @@ if not args["table_of_contents"]:
     output_pdf.appendPagesFromReader(input_pdf)
 
 # Add nested bookmarks from page_dict
+#TODO: Fix for Linux (Windows works for now)
 print()
 if args["table_of_contents"]:
     toc_title = input_dir_name + " - Table of Contents"
@@ -321,7 +351,7 @@ def iterdict(d, base_path="", empty_parents_in=list()):
                 # It's a file
                 page_index = page_list_files.index(filename)
                 last_page_index = page_index
-iterdict(page_dict, base_path=input_dir)
+iterdict(page_dict, base_path=final_input_dir)
 
 if not args["table_of_contents"]:
     # Save final PDF
@@ -334,3 +364,8 @@ if not args["table_of_contents"]:
     print("Deleting temporary PDF '{}'".format(temp_pdf))
     input_pdf_file.close()
     os.remove(temp_pdf)
+
+if args["purify"] and (final_input_dir != input_dir):
+    print()
+    print("Delete temporary directory '{}'".format(final_input_dir))
+    shutil.rmtree(final_input_dir)
