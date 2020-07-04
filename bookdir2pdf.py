@@ -34,8 +34,8 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names ( like '.' or ')' )")
 ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
-ap.add_argument("-p", "--purify", const=170, default=None, action="store", nargs="?", type=int, 
-    help="purify scanned B&W page ( greyscale, sharpen, threshold [default=170] )")
+ap.add_argument("-p", "--purify", action="store", nargs="*", type=int, 
+    help="purify scanned B&W page ( greyscale, sharpen [default=3], threshold [default=170] )")
 ap.add_argument("-a", "--purify_adaptive", action="store_true",
     help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold )")
 args = vars(ap.parse_args())
@@ -67,11 +67,26 @@ else:
 
 output_file_dir, output_file_name = os.path.split(output_file)
 
-if args["purify"] != None:
-    purify = True
-    thresh_setting = args["purify"]
+adaptive = args["purify_adaptive"]
 
-adaptive = args["adaptive_purify"]
+if args["purify"] != None:
+    if len(args["purify"]) > 2:
+        raise argparse.ArgumentError("Too many arguments, usage: --purify [THRESH] [SHARP]")
+        
+    purify = True
+    
+    if len(args["purify"]) >= 1:
+        thresh_setting = args["purify"][0]
+    else:
+        thresh_setting = 170
+        
+    if len(args["purify"]) >= 2:
+        usm_blur = args["purify"][1]
+    else:
+        usm_blur = 3
+    
+    if not adaptive:
+        print("Will purify with a sharpening amount of {} and a threshold of {}.".format(usm_blur, thresh_setting))
 
 # Do not purify if --table_of_contents is set
 if args["table_of_contents"]:
@@ -81,6 +96,11 @@ if args["table_of_contents"]:
 # If adaptive, also purify
 if adaptive:
     purify = True
+    #TODO: Set from command line
+    at_block_size = 21
+    at_sub_const = 15
+    
+    print("Will purify with a sharpening amount of {} and an adaptive threshold with a block size of {} and a constant subtraction of {}.".format(usm_blur, at_block_size, at_sub_const))
 
 # Do main imports
 import img2pdf
@@ -186,21 +206,17 @@ if args["purify"]:
             page_im = cv2.imread(p)
             orig = page_im.copy()
             if purify:
-                #TODO: Fix wierd extra parent bookmmrks with purify option
                 print("\tPurifying '{}'".format(p))
                 # Make greyscale
                 gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
                 
                 # Sharpen (USM)
-                usm_blur = 3
                 sharpen = cv2.GaussianBlur(gray, (0,0), usm_blur)
                 sharpen = cv2.addWeighted(gray, 1.5, sharpen, -0.5, 0)
                 
                 # Apply threshold
                 if adaptive:
                     # Adaptive
-                    at_block_size = 21
-                    at_sub_const = 15
                     thresh = cv2.adaptiveThreshold(sharpen, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, at_block_size, at_sub_const)
                 else:
                     # Normal
