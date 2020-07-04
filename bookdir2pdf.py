@@ -164,7 +164,9 @@ if not args["table_of_contents"]:
 # Add nested bookmarks from page_dict
 print()
 if args["table_of_contents"]:
-    print("Table of Contents")
+    toc_title = input_dir_name + " - Table of Contents"
+    print(toc_title)
+    print(''.join(['-' for x in range(len(toc_title))]))
 else:
     print("Creating nested bookmarks...")
 ident = ""
