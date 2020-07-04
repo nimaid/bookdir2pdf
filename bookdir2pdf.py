@@ -219,8 +219,7 @@ if not args["table_of_contents"]:
     output_pdf = PdfFileWriter()
     input_pdf_file = open(temp_pdf, 'rb')
     input_pdf = PdfFileReader(input_pdf_file)
-    for p in range(input_pdf.numPages):
-        output_pdf.addPage(input_pdf.getPage(p))
+    output_pdf.appendPagesFromReader(input_pdf)
 
 # Add nested bookmarks from page_dict
 print()
