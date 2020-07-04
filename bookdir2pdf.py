@@ -166,7 +166,7 @@ pagenum_sep = "\t\tPage #"
 last_page_index = -1 # Because we want the next page to be 0
 path_list = list()
 bookmark_list = list()
-def iterdict(d, base_path=""):
+def iterdict(d, base_path="", empty_parents_in=list()):
     global ident
     global path_list
     global last_page_index
@@ -200,7 +200,7 @@ def iterdict(d, base_path=""):
             # Deal with recursively empty folders
             empty_parents = list()
             if len(v_file_list) <= 0:
-                # Test if is a subdir of an empty_parent
+                # Test if is not a subdir of an empty_parent
                 is_subdir_of_empty_parent = False
                 for empty_parent in empty_parents:
                     if os.path.commonpath([filename, empty_parent]) == empty_parent:
@@ -208,7 +208,7 @@ def iterdict(d, base_path=""):
                 if not is_subdir_of_empty_parent:
                     # This is the main parent
                     page_ref += 1
-                    empty_parents.append(dir)
+                    empty_parents.append(filename)
             
             # Prevent referencing non-existent pages
             page_ref = min(page_ref, num_pages - 1)
@@ -223,7 +223,7 @@ def iterdict(d, base_path=""):
             path_list.append(k)
             
             # Do recursion
-            iterdict(v, base_path=base_path)
+            iterdict(v, base_path=base_path, empty_parents_in=empty_parents)
             
             temp = bookmark_list.pop()
             temp = path_list.pop()
@@ -234,7 +234,15 @@ def iterdict(d, base_path=""):
             if os.path.isdir(filename):
                 # It's a totally empty directory, make an "empty" bookmark (no pages/children, references next page)
                 
-                #TODO: Fix bug if this is the last in a nested dir (page -1 issue)
+                # Deal with children of empty parents
+                empty_parents = empty_parents_in
+                is_subdir_of_empty_parent = False
+                for empty_parent in empty_parents:
+                    if os.path.commonpath([filename, empty_parent]) == empty_parent:
+                        is_subdir_of_empty_parent = True
+                if is_subdir_of_empty_parent:
+                    # Adjust page number forward
+                    page_ref += 1
                 
                 # Prevent referencing non-existent pages
                 page_ref = min(page_ref, num_pages - 1)
