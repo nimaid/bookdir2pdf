@@ -161,6 +161,7 @@ if not args["table_of_contents"]:
         #TODO:     Process with adaptive threshold
         pdf.add_page()
         pdf.image(page_im, 0, 0)
+        page_im.close()
     print("Saving temporary PDF '{}'".format(temp_pdf))
     pdf.output(temp_pdf, "F")
 
