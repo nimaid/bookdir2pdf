@@ -21,7 +21,7 @@ optional arguments:
   -p [PURIFY], --purify [PURIFY]
                         purify scanned B&W page ( greyscale, sharpen,
                         threshold [default=170] )
-  -a, --adaptive_purify
+  -a, --purify_adaptive
                         purify scanned B&W page ( greyscale, sharpen, adaptive
                         threshold )
 ```
