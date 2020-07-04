@@ -35,6 +35,8 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
 ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", action="store_true",
+    help="purify scanned B&W page (greyscale, sharpen, threshold)")
+ap.add_argument("-a", "--adaptive_purify", action="store_true",
     help="purify scanned B&W page (greyscale, sharpen, adaptive threshold)")
 args = vars(ap.parse_args())
 
@@ -67,15 +69,21 @@ output_file_dir, output_file_name = os.path.split(output_file)
 
 # Do not purify if --table_of_contents is set
 purify = args["purify"]
+adaptive = args["adaptive_purify"]
 if args["table_of_contents"]:
     purify = False
+    adaptive = False
+
+# If adaptive, also purify
+if adaptive:
+    purify = True
 
 # Do main imports
 from fpdf import FPDF
 from PIL import Image
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
-import shutil
+import cv2
 
 print()
 print("Scanning input directory...")
@@ -156,12 +164,35 @@ if not args["table_of_contents"]:
     pdf = FPDF(unit = "pt", format = [width, height])
     for page in page_list_files:
         print("Adding page: " + page)
-        page_im = Image.open(page)
-        #TODO:     Process with sharpen
-        #TODO:     Process with adaptive threshold
+        page_im = cv2.imread(page)
+        orig = page_im.copy()
+        if purify:
+            print("\tPurifying...")
+            # Make greyscale
+            gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
+            
+            # Sharpen
+            sharpen = cv2.GaussianBlur(gray, (0,0), 3)
+            sharpen = cv2.addWeighted(gray, 1.5, sharpen, -0.5, 0)
+            
+            # Apply threshold
+            if adaptive:
+                # Adaptive
+                thresh = cv2.adaptiveThreshold(sharpen, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 15)
+            else:
+                # Normal
+                temp, thresh = cv2.threshold(sharpen, 127, 255, cv2.THRESH_BINARY)
+            
+            final_page_im = thresh
+        else:
+            final_page_im = orig
+        
+        # Convert OpenCV image to Pillow image
+        pil_page_im = Image.fromarray(final_page_im)
+        
+        # Add image
         pdf.add_page()
-        pdf.image(page_im, 0, 0)
-        page_im.close()
+        pdf.image(pil_page_im, 0, 0)
     print("Saving temporary PDF '{}'".format(temp_pdf))
     pdf.output(temp_pdf, "F")
 
