@@ -498,7 +498,7 @@ if not args["table_of_contents"]:
     input_pdf_file.close()
     os.remove(temp_pdf)
 
-if args["purify"] and (final_input_dir != input_dir):
+if purify and (os.realpath(final_input_dir) != os.realpath(input_dir)):
     print()
     print("Delete temporary directory '{}'".format(final_input_dir))
     shutil.rmtree(final_input_dir)
