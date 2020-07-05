@@ -37,8 +37,8 @@ ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=str, 
     help="purify scanned B&W page ( greyscale, sharpen, threshold ), named argumets: (sharpen|s) (threshold|t)")
-ap.add_argument("-pa", "--purify_adaptive", action="store_true",
-    help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold )")
+ap.add_argument("-pa", "--purify_adaptive", action="store", default=None, nargs="*", type=str,
+    help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold ), named argumets: (sharpen|s) (block_size|b) (sub_const|c)")
 args = vars(ap.parse_args())
 
 input_dir = args["input_dir"]
@@ -68,7 +68,7 @@ else:
 
 output_file_dir, output_file_name = os.path.split(output_file)
 
-if (args["purify"] != None) and (args["purify_adaptive"] != False):
+if (args["purify"] != None) and (args["purify_adaptive"] != None):
     raise argparse.ArgumentTypeError("Can not use (--purify | -p) and (--purify_adaptive | -pa) at the same time.")
 
 # Test if/which purify flavor is being used
@@ -76,10 +76,10 @@ if args["purify"] != None:
     purify = True
     adaptive = False
     purify_args = args["purify"]
-elif args["purify_adaptive"] == True:
+elif args["purify_adaptive"] != None:
     purify = True
     adaptive = True
-    purify_args = ()
+    purify_args = args["purify_adaptive"]
 else:
     purify = False
     adaptive = False
@@ -98,23 +98,23 @@ if purify:
     at_block_size = 21
     at_sub_const = 15
     
-    if adaptive:
-        # Parse adaptive purify named sub-arguments
-        #TODO: Breakout named arguments
+    for p_arg in purify_args:
+        p_arg_split = p_arg.split("=")
         
-        print("Will purify with a sharpening amount of {}, an adaptive threshold with a block size of {}, and a constant subtraction of {}.".format(usm_blur, at_block_size, at_sub_const))
-    else:
-        # Parse vanilla purify named sub-arguments
-        for p_arg in purify_args:
-            p_arg_split = p_arg.split("=")
-            
-            # Only allow [string]=[string]
-            if len(p_arg_split) != 2:
-                raise argparse.ArgumentTypeError("Invalid argument format. Use arg_name=arg_value .")
+        # Only allow [string]=[string]
+        if len(p_arg_split) != 2:
+            raise argparse.ArgumentTypeError("Invalid argument format. Use arg_name=arg_value .")
+
+        # Get name and value seperately
+        p_arg_name, p_arg_value = [x.lower().strip() for x in p_arg_split]
     
-            # Get name and value seperately
-            p_arg_name, p_arg_value = [x.lower().strip() for x in p_arg_split]
+        if adaptive:
+            # Parse adaptive purify named sub-arguments
+            #TODO: Breakout named arguments
+            temp = None
             
+        else:
+            # Parse vanilla purify named sub-arguments
             if p_arg_name in ["sharpen", "s"]:
                 # Test if it's a postivie float and set
                 worked = True
@@ -143,9 +143,11 @@ if purify:
                     raise argparse.ArgumentTypeError("(--purify | -p) threshold must be a positive float <= 255.")
             else:
                 raise argparse.ArgumentTypeError("{} is not a valid option for (--purify | -p).".format(p_arg_name))
-            
+    
+    if adaptive:
+        print("Will purify with a sharpening amount of {}, an adaptive threshold with a block size of {}, and a constant subtraction of {}.".format(usm_blur, at_block_size, at_sub_const))
+    else:
         print("Will purify with a sharpening amount of {} and a threshold of {}.".format(usm_blur, thresh_setting))
-
 
 
 # Do main imports
