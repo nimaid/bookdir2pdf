@@ -110,9 +110,40 @@ if purify:
     
         if adaptive:
             # Parse adaptive purify named sub-arguments
-            #TODO: Breakout named arguments
-            temp = None
-            
+            if p_arg_name in ["sharpen", "s"]:
+                # Test if it's a postivie float and set
+                worked = True
+                try:
+                    usm_blur = float(p_arg_value)
+                    if usm_blur < 0:
+                        worked = False
+                except(ValueError):
+                    worked = False
+                    
+                if not worked:
+                    raise argparse.ArgumentTypeError("(--purify | -p) sharpness must be a positive float")
+            elif p_arg_name in ["block_size", "b"]:
+                #TODO: Test if it's a  and set
+                worked = True
+                try:
+                    
+                except(ValueError):
+                    worked = False
+                    
+                if not worked:
+                    raise argparse.ArgumentTypeError("")
+            elif p_arg_name in ["sub_const", "c"]:
+                #TODO: Test if it's a  and set
+                worked = True
+                try:
+                    
+                except(ValueError):
+                    worked = False
+                    
+                if not worked:
+                    raise argparse.ArgumentTypeError("")
+            else:
+                raise argparse.ArgumentTypeError("{} is not a valid option for (--purify_adaptive | -pa).".format(p_arg_name))
         else:
             # Parse vanilla purify named sub-arguments
             if p_arg_name in ["sharpen", "s"]:
