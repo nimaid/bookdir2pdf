@@ -37,11 +37,15 @@ ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=str, 
     help="purify scanned B&W page ( greyscale, sharpen, threshold ), named sub-argumets: (sharpen|s) (threshold|t)")
+ap.add_argument("-d", "--dpi", type=int, default=300,
+    help="dots-per-inch of the input images")
 args = vars(ap.parse_args())
 
-input_dir = args["input_dir"]
-input_dir = os.path.normpath(input_dir)
+print()
+
 # Resolve input dir into absolute path (relative to working directory!)
+input_dir = args["input_dir"]
+input_dir = os.path.realpath(input_dir)
 if not os.path.isabs(input_dir):
     input_dir_split = input_dir.split(os.path.sep)
     if input_dir_split[0] == os.path.curdir:
@@ -50,21 +54,10 @@ if not os.path.isabs(input_dir):
 
 input_dir_name = input_dir.strip(os.path.sep).split(os.path.sep)[-1]
 
-if args["output_file"] == None:
-    output_file = input_dir + os.path.extsep + "pdf"
-else:
-    out_dir, out_name = os.path.split(args["output_file"])
-    out_name_split = out_name.split(os.path.extsep)
-    if len(out_name_split) >= 2:
-        # There is an extention
-        output_file = args["output_file"]
-        if out_name_split[-1].lower() != "pdf":
-            output_file += os.path.extsep + "pdf"
-    else:
-        # No extention provided
-        output_file = args["output_file"] + os.path.extsep + "pdf"
-
-output_file_dir, output_file_name = os.path.split(output_file)
+# Limit DPI
+if args["dpi"] != None:
+    if (args["dpi"] < 72) or (args["dpi"] > 4800):
+        raise argparse.ArgumentTypeError("DPI must be 72 <= DPI <= 4800.")
 
 # Test if/which purify flavor is being used
 if args["purify"] != None:
@@ -131,7 +124,38 @@ if purify:
             raise argparse.ArgumentTypeError("'{}' is not a valid option for (--purify | -p).".format(p_arg_name))
     
     print("Will purify with a sharpening amount of {} and a threshold of {}.".format(sharpen_factor, thresh_setting))
+    print()
 
+if args["table_of_contents"] and args["purify"] != None:
+    print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-t) arguments were passed, will not purify images.")
+
+if args["table_of_contents"]:
+    print("Will only print the Table of Contents, will NOT process images or save PDF.")
+else:
+    # Resolve output filename
+    if args["output_file"] == None:
+        output_file = input_dir + os.path.extsep + "pdf"
+    else:
+        out_dir, out_name = os.path.split(args["output_file"])
+        out_name_split = out_name.split(os.path.extsep)
+        if len(out_name_split) >= 2:
+            # There is an extention
+            output_file = args["output_file"]
+            if out_name_split[-1].lower() != "pdf":
+                output_file += os.path.extsep + "pdf"
+        else:
+            # No extention provided
+            output_file = args["output_file"] + os.path.extsep + "pdf"
+    
+    output_file = os.path.realpath(output_file)
+    
+    # Print target filename
+    if args["output_file"] == None:
+        print("No output filename supplied, using '{}'".format(output_file))
+    else:
+        print("Will save PDF as '{}'".format(output_file))
+    
+    output_file_dir, output_file_name = os.path.split(output_file)
 
 # Do main imports
 import img2pdf
@@ -286,7 +310,7 @@ if not args["table_of_contents"]:
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     print("Saving temporary PDF '{}'".format(temp_pdf))
     with open(temp_pdf, "wb") as f:
-        f.write(img2pdf.convert(page_list_files))
+        f.write(img2pdf.convert(page_list_files, dpi=args["dpi"]))
     
     # Load PDF into PyPDF2
     print()
@@ -318,7 +342,7 @@ def iterdict(d, base_path="", empty_parents_in=list()):
 
     for k, v in d.items(): 
         filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
-        filename = os.path.normpath(filename)
+        filename = os.path.realpath(filename)
         
         # Get parent bookmark
         if len(bookmark_list) > 0:
