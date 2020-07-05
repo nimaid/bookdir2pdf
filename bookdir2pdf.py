@@ -81,7 +81,7 @@ if args["table_of_contents"]:
 # Parse purify sub-arguments (values)
 if purify:
     # Defaults
-    usm_blur = 3
+    sharpen_factor = 2
     thresh_setting = 170
     
     for p_arg in purify_args:
@@ -89,7 +89,7 @@ if purify:
         
         # Only allow [string]=[string]
         if len(p_arg_split) != 2:
-            raise argparse.ArgumentTypeError("Invalid argument format. Use arg_name=arg_value .")
+            raise argparse.ArgumentTypeError("Invalid argument format. Use arg_name=arg_value.")
 
         # Get name and value seperately
         p_arg_name, p_arg_value = [x.lower().strip() for x in p_arg_split]
@@ -99,16 +99,16 @@ if purify:
             # Test if it's a float and set
             worked = True
             try:
-                usm_blur = float(p_arg_value)
+                sharpen_factor = float(p_arg_value)
             except(ValueError):
                 worked = False
             
-            # Test if it's positive
-            if usm_blur < 0:
-                    worked = False
+            # Test if it's greater than 0
+            if sharpen_factor <= 0:
+                worked = False
             
             if not worked:
-                raise argparse.ArgumentTypeError("(--purify | -p) sharpness must be a positive float")
+                raise argparse.ArgumentTypeError("(--purify | -p) sharpness must be a float greater than 0.")
         elif p_arg_name in ["threshold", "t"]:
             # Test if it's a float and set
             worked = True
@@ -130,15 +130,14 @@ if purify:
         else:
             raise argparse.ArgumentTypeError("'{}' is not a valid option for (--purify | -p).".format(p_arg_name))
     
-    print("Will purify with a sharpening amount of {} and a threshold of {}.".format(usm_blur, thresh_setting))
+    print("Will purify with a sharpening amount of {} and a threshold of {}.".format(sharpen_factor, thresh_setting))
 
 
 # Do main imports
 import img2pdf
-from PIL import Image
+from PIL import Image, ImageEnhance
 from collections import OrderedDict
 from PyPDF2 import PdfFileWriter, PdfFileReader
-import cv2
 import shutil
 
 print()
@@ -234,29 +233,25 @@ if purify:
         final_p = new_page_list[x]
         if os.path.isfile(p):
             # It's an image file
-            page_im = cv2.imread(p)
-            orig = page_im.copy()
-            if purify:
-                print("\tPurifying '{}'".format(p))
-                # Make greyscale
-                gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
-                
-                # Sharpen (USM)
-                sharpen = cv2.GaussianBlur(gray, (0,0), usm_blur)
-                sharpen = cv2.addWeighted(gray, 1.5, sharpen, -0.5, 0)
-                
-                # Apply threshold
-                temp, thresh = cv2.threshold(sharpen, thresh_setting, 255, cv2.THRESH_BINARY)
-                
-                final_page_im = thresh
-            else:
-                final_page_im = orig
-            
-            # Convert OpenCV image to Pillow image
-            pil_page_im = Image.fromarray(final_page_im)
+            with Image.open(p) as page_im:
+                if purify:
+                    print("\tPurifying '{}'".format(p))
+                    # Make greyscale
+                    gray = page_im.convert('L')
+                    
+                    # Sharpen 
+                    enhancer = ImageEnhance.Sharpness(gray)
+                    sharpen = enhancer.enhance(sharpen_factor)
+                    
+                    # Apply threshold
+                    thresh = sharpen.point(lambda p: p > thresh_setting and 255)  
+                    
+                    final_page_im = thresh
+                else:
+                    final_page_im = page_im
             
             # Save image
-            pil_page_im.save(final_p, "PNG")
+            final_page_im.save(final_p, "PNG")
 
     # Update page_list with new images/paths
     page_list = new_page_list

@@ -5,7 +5,6 @@ Merges a directory structure of images into a PDF with nested bookmarks.
 usage: bookdir2pdf.py [-h] -i INPUT_DIR [-o OUTPUT_FILE]
                       [-s ORDER_NUMBER_SEPERATOR] [-t]
                       [-p [PURIFY [PURIFY ...]]]
-                      [-pa [PURIFY_ADAPTIVE [PURIFY_ADAPTIVE ...]]]
 
 Merge nested image direcotry into PDF with nested bookmarks.
 
@@ -22,17 +21,16 @@ optional arguments:
                         just scan directory and print table of contents
   -p [PURIFY [PURIFY ...]], --purify [PURIFY [PURIFY ...]]
                         purify scanned B&W page ( greyscale, sharpen,
-                        threshold ), named argumets: (sharpen|s) (threshold|t)
-  -pa [PURIFY_ADAPTIVE [PURIFY_ADAPTIVE ...]], --purify_adaptive [PURIFY_ADAPTIVE [PURIFY_ADAPTIVE ...]]
-                        purify scanned B&W page ( greyscale, sharpen, adaptive
-                        threshold ), named argumets: (sharpen|s)
-                        (block_size_pad|b) (sub_const|c)
+                        threshold ), named sub-argumets: (sharpen|s)
+                        (threshold|t)
 ```
 
 The PDF here was made using:
 
-`./bookdir2pdf.py -i test_dir/ -s . -p`
+`./bookdir2pdf.py -i test_dir/ -s . -p s=1`
 
 The `.` is what seperates the ordering numbers from the bookmark name in the directory name.
+
+The `-p s=1` means to not sharpen, only threshold.
 
 For example, the directory name `01. The First Part` has a `.` between the ordering number `01` and the bookmark name `The First Part`.
