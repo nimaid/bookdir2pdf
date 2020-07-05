@@ -38,7 +38,7 @@ ap.add_argument("-t", "--table_of_contents", action="store_true",
 ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=str, 
     help="purify scanned B&W page ( greyscale, sharpen, threshold ), named argumets: (sharpen|s) (threshold|t)")
 ap.add_argument("-pa", "--purify_adaptive", action="store", default=None, nargs="*", type=str,
-    help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold ), named argumets: (sharpen|s) (block_size|b) (sub_const|c)")
+    help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold ), named argumets: (sharpen|s) (block_size_pad|b) (sub_const|c)")
 args = vars(ap.parse_args())
 
 input_dir = args["input_dir"]
@@ -95,7 +95,7 @@ if purify:
     # Defaults
     usm_blur = 3
     thresh_setting = 170
-    at_block_size = 21
+    at_block_size_pad = 10
     at_sub_const = 15
     
     for p_arg in purify_args:
@@ -111,72 +111,87 @@ if purify:
         if adaptive:
             # Parse adaptive purify named sub-arguments
             if p_arg_name in ["sharpen", "s"]:
-                # Test if it's a postivie float and set
+                # Test if it's a float and set
                 worked = True
                 try:
                     usm_blur = float(p_arg_value)
-                    if usm_blur < 0:
+                except(ValueError):
+                    worked = False
+                
+                # Test if it's positive
+                if usm_blur < 0:
+                    worked = False
+                    
+                if not worked:
+                    raise argparse.ArgumentTypeError("(--purify_adaptive | -pa) sharpness must be a positive float")
+            elif p_arg_name in ["block_size_pad", "b"]:
+                # Test if it's an integer and set temporary variable
+                worked = True
+                try:
+                    at_block_size_pad = int(p_arg_value)
+                except(ValueError):
+                    worked = False
+                
+                # Test if it's at least 1
+                if at_block_size_pad < 1:
                         worked = False
-                except(ValueError):
-                    worked = False
                     
                 if not worked:
-                    raise argparse.ArgumentTypeError("(--purify | -p) sharpness must be a positive float")
-            elif p_arg_name in ["block_size", "b"]:
-                #TODO: Test if it's a  and set
-                worked = True
-                try:
-                    
-                except(ValueError):
-                    worked = False
-                    
-                if not worked:
-                    raise argparse.ArgumentTypeError("")
+                    raise argparse.ArgumentTypeError("(--purify_adaptive | -pa) block size padding must be an integer >= 1")
             elif p_arg_name in ["sub_const", "c"]:
-                #TODO: Test if it's a  and set
+                # Test if it's a float and set
                 worked = True
                 try:
-                    
+                    at_sub_const = float(p_arg_value)
                 except(ValueError):
                     worked = False
                     
                 if not worked:
-                    raise argparse.ArgumentTypeError("")
+                    raise argparse.ArgumentTypeError("(--purify_adaptive | -pa) subtraction constant must be a float")
             else:
-                raise argparse.ArgumentTypeError("{} is not a valid option for (--purify_adaptive | -pa).".format(p_arg_name))
+                raise argparse.ArgumentTypeError("'{}' is not a valid option for (--purify_adaptive | -pa).".format(p_arg_name))
         else:
             # Parse vanilla purify named sub-arguments
             if p_arg_name in ["sharpen", "s"]:
-                # Test if it's a postivie float and set
+                # Test if it's a float and set
                 worked = True
                 try:
                     usm_blur = float(p_arg_value)
-                    if usm_blur < 0:
-                        worked = False
                 except(ValueError):
                     worked = False
-                    
+                
+                # Test if it's positive
+                if usm_blur < 0:
+                        worked = False
+                
                 if not worked:
                     raise argparse.ArgumentTypeError("(--purify | -p) sharpness must be a positive float")
             elif p_arg_name in ["threshold", "t"]:
-                # Test if it's a positive float <= 255 and set
+                # Test if it's a float and set
                 worked = True
                 try:
                     thresh_setting = float(p_arg_value)
-                    if thresh_setting < 0:
-                        worked = False
-                    if thresh_setting > 255:
-                        worked = False
                 except(ValueError):
                     worked = False
-                    
+                
+                # Test if it's positive
+                if thresh_setting < 0:
+                    worked = False
+                
+                # Test if it's <= 255
+                if thresh_setting > 255:
+                    worked = False
+                
                 if not worked:
                     raise argparse.ArgumentTypeError("(--purify | -p) threshold must be a positive float <= 255.")
             else:
-                raise argparse.ArgumentTypeError("{} is not a valid option for (--purify | -p).".format(p_arg_name))
+                raise argparse.ArgumentTypeError("'{}' is not a valid option for (--purify | -p).".format(p_arg_name))
+        
+    # Calulate ACTUAL kernel size
+    at_block_size = (at_block_size_pad * 2) + 1
     
     if adaptive:
-        print("Will purify with a sharpening amount of {}, an adaptive threshold with a block size of {}, and a constant subtraction of {}.".format(usm_blur, at_block_size, at_sub_const))
+        print("Will purify with a sharpening amount of {}, an adaptive threshold with a block size padding of {}, and a constant subtraction of {}.".format(usm_blur, at_block_size_pad, at_sub_const))
     else:
         print("Will purify with a sharpening amount of {} and a threshold of {}.".format(usm_blur, thresh_setting))
 
