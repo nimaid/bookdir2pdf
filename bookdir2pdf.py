@@ -33,12 +33,14 @@ ap.add_argument("-o", "--output_file", type=str, default=None,
     help="output file path ( defaults to [input_dir].pdf )")
 ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names ( like '.' or ')' )")
-ap.add_argument("-t", "--table_of_contents", action="store_true",
+ap.add_argument("-c", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=str, 
     help="purify scanned B&W page ( greyscale, sharpen, threshold ), named sub-argumets: (sharpen|s) (threshold|t)")
 ap.add_argument("-d", "--dpi", type=int, default=300,
     help="dots-per-inch of the input images")
+ap.add_argument("--title", action="store_true",
+    help="just scan directory and print table of contents")
 args = vars(ap.parse_args())
 
 print()
@@ -127,7 +129,7 @@ if purify:
     print()
 
 if args["table_of_contents"] and args["purify"] != None:
-    print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-t) arguments were passed, will not purify images.")
+    print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-c) arguments were passed, will not purify images.")
 
 if args["table_of_contents"]:
     print("Will only print the Table of Contents, will NOT process images or save PDF.")
