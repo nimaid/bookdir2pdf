@@ -42,3 +42,27 @@ The `.` is what seperates the ordering numbers from the bookmark name in the dir
 
 The `sharpen=1` means not to sharpen during the purification step.
 
+The bookmark structure can be previewed without actually processing any files:
+
+```
+$ bookdir2pdf.py --input_dir test_dir/ --table_of_contents
+
+... [output removed] ...
+
+Example PDF - Table of Contents
+-------------------------------
+Page #1    Cover Page
+Page #2    --- Empty Directory Example #1
+Page #2    --- --- Nested Empty Directory Level 1
+Page #2    --- --- --- Nested Empty Directory Level 2
+Page #2    --- --- --- --- Nested Empty Directory Level 3
+Page #2    Empty Directory Example #2
+Page #2    The First Part
+Page #2    --- Chapter 1
+Page #4    --- Chapter 2
+Page #6    The Middle Part
+Page #6    --- Chapter 3
+Page #8    --- Chapter 4
+Page #10   The Final Part
+Page #10   --- Chapter 5
+Page #12   --- Chapter 6

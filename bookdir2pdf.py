@@ -351,7 +351,7 @@ if not args["table_of_contents"]:
 # Add nested bookmarks from page_dict
 print()
 if args["table_of_contents"]:
-    toc_title = input_dir_name + " - Table of Contents"
+    toc_title = pdf_title + " - Table of Contents"
     print(toc_title)
     print(''.join(['-' for x in range(len(toc_title))]))
 else:
