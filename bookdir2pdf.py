@@ -25,6 +25,7 @@ def dir_path(string):
     else:
         raise NotADirectoryError(string)
 
+# TODO: Add usage examples
 ap = argparse.ArgumentParser(description="Merge nested image direcotry into PDF with nested bookmarks.")
 ap.add_argument("-i", "--input_dir", type=dir_path, required=True,
     help="path to nested image directory to merge")
@@ -34,8 +35,8 @@ ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
     help="the character used to seperate the direcotry ordering numbers from the bookmark names ( like '.' or ')' )")
 ap.add_argument("-t", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
-ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=int, 
-    help="purify scanned B&W page ( greyscale, sharpen [default=3], threshold [default=170] )")
+ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=str, 
+    help="purify scanned B&W page ( greyscale, sharpen, threshold ), named argumets: (sharpen|s) (threshold|t)")
 ap.add_argument("-pa", "--purify_adaptive", action="store_true",
     help="purify scanned B&W page ( greyscale, sharpen, adaptive threshold )")
 args = vars(ap.parse_args())
@@ -68,7 +69,7 @@ else:
 output_file_dir, output_file_name = os.path.split(output_file)
 
 if (args["purify"] != None) and (args["purify_adaptive"] != False):
-    raise argparse.ArgumentError("Can not use (--purify | -p) and (--purify_adaptive | -pa) at the same time.")
+    raise argparse.ArgumentTypeError("Can not use (--purify | -p) and (--purify_adaptive | -pa) at the same time.")
 
 # Test if/which purify flavor is being used
 if args["purify"] != None:
@@ -91,29 +92,61 @@ if args["table_of_contents"]:
 
 # Parse purify sub-arguments (values)
 if purify:
-    if len(purify_args) > 2:
-        raise argparse.ArgumentError("Too many arguments, usage: --purify [THRESH] [SHARP]")
-        
-    if len(purify_args) >= 1:
-        thresh_setting = purify_args[0]
-    else:
-        thresh_setting = 170
-        
-    if len(purify_args) >= 2:
-        usm_blur = purify_args[1]
-    else:
-        usm_blur = 3
-    
-    if not adaptive:
-        print("Will purify with a sharpening amount of {} and a threshold of {}.".format(usm_blur, thresh_setting))
-
-# Parse adaptive values
-if adaptive:
-    #TODO: Set from command line
+    # Defaults
+    usm_blur = 3
+    thresh_setting = 170
     at_block_size = 21
     at_sub_const = 15
     
-    print("Will purify with a sharpening amount of {}, an adaptive threshold with a block size of {}, and a constant subtraction of {}.".format(usm_blur, at_block_size, at_sub_const))
+    if adaptive:
+        # Parse adaptive purify named sub-arguments
+        #TODO: Breakout named arguments
+        
+        print("Will purify with a sharpening amount of {}, an adaptive threshold with a block size of {}, and a constant subtraction of {}.".format(usm_blur, at_block_size, at_sub_const))
+    else:
+        # Parse vanilla purify named sub-arguments
+        for p_arg in purify_args:
+            p_arg_split = p_arg.split("=")
+            
+            # Only allow [string]=[string]
+            if len(p_arg_split) != 2:
+                raise argparse.ArgumentTypeError("Invalid argument format. Use arg_name=arg_value .")
+    
+            # Get name and value seperately
+            p_arg_name, p_arg_value = [x.lower().strip() for x in p_arg_split]
+            
+            if p_arg_name in ["sharpen", "s"]:
+                # Test if it's a postivie float and set
+                worked = True
+                try:
+                    usm_blur = float(p_arg_value)
+                    if usm_blur < 0:
+                        worked = False
+                except(ValueError):
+                    worked = False
+                    
+                if not worked:
+                    raise argparse.ArgumentTypeError("(--purify | -p) sharpness must be a positive float")
+            elif p_arg_name in ["threshold", "t"]:
+                # Test if it's a positive float <= 255 and set
+                worked = True
+                try:
+                    thresh_setting = float(p_arg_value)
+                    if thresh_setting < 0:
+                        worked = False
+                    if thresh_setting > 255:
+                        worked = False
+                except(ValueError):
+                    worked = False
+                    
+                if not worked:
+                    raise argparse.ArgumentTypeError("(--purify | -p) threshold must be a positive float <= 255.")
+            else:
+                raise argparse.ArgumentTypeError("{} is not a valid option for (--purify | -p).".format(p_arg_name))
+            
+        print("Will purify with a sharpening amount of {} and a threshold of {}.".format(usm_blur, thresh_setting))
+
+
 
 # Do main imports
 import img2pdf
