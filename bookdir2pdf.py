@@ -15,6 +15,8 @@ else:
     PROG_PATH = os.path.dirname(PROG_FILE)
     PATH = PROG_PATH
 
+PROG_FILE_NAME = os.path.splitext(os.path.basename(PROG_FILE))[0]
+
 # Get path that the command was called from
 COMMAND_PATH = Path().absolute()
 
@@ -39,8 +41,10 @@ ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=
     help="purify scanned B&W page ( greyscale, sharpen, threshold ), named sub-argumets: (sharpen|s) (threshold|t)")
 ap.add_argument("-d", "--dpi", type=int, default=300,
     help="dots-per-inch of the input images")
-ap.add_argument("--title", action="store_true",
-    help="just scan directory and print table of contents")
+ap.add_argument("-t", "--title", type=str, default=None,
+    help="the PDF title ( defaults to the directory basename )")
+ap.add_argument("-a", "--author", type=str, default=None,
+    help="the PDF author ( defaults to '{}', pass '' for no author )".format(PROG_FILE_NAME))
 args = vars(ap.parse_args())
 
 print()
@@ -158,6 +162,28 @@ else:
         print("Will save PDF as '{}'".format(output_file))
     
     output_file_dir, output_file_name = os.path.split(output_file)
+
+# Set PDF title
+if args["title"] != None:
+    pdf_title = args["title"]
+    print()
+    if len(pdf_title) <= 0:
+        print("PDF will have no title.")
+    else:
+        print("PDF title will be set to '{}'".format(pdf_title))
+else:
+    pdf_title = input_dir_name
+
+# Set PDF author
+if args["author"] != None:
+    pdf_author = args["author"].strip()
+    print()
+    if len(pdf_author) <= 0:
+        print("PDF will have no author.")
+    else:
+        print("PDF author will be set to '{}'".format(pdf_author))
+else:
+    pdf_author = PROG_FILE_NAME
 
 # Do main imports
 import img2pdf
@@ -440,6 +466,12 @@ def iterdict(d, base_path="", empty_parents_in=list()):
 iterdict(page_dict, base_path=final_input_dir)
 
 if not args["table_of_contents"]:
+    # Add metadata to PDF
+    output_pdf.addMetadata({
+        '/Title': pdf_title,
+        '/Author': pdf_author
+        })
+    
     # Save final PDF
     print("Saving bookmarked PDF '{}'".format(output_file))
     with open(output_file, 'wb') as f:
