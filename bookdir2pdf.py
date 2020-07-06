@@ -282,8 +282,11 @@ for p in input_dir_list:
                         rename_dir = x_path
                     
                     #TODO: Parse .rename files
-                    rename_name = "PLACEHOLDER RENAME - TODO: READ FROM .rename FILE"
+                    #rename_name = "PLACEHOLDER RENAME - TODO: READ FROM .rename FILE"
+                    with open(x) as f:
+                        rename_file_contents = f.read()
                     
+                    rename_name = rename_file_contents.strip().split("\n")[0].strip()
                     
                     page_dir_rename_dict[rename_dir] = rename_name
         
