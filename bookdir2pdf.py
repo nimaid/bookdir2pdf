@@ -204,14 +204,42 @@ ignored_file_exts = [".ignore", ".db"]
 # Set valid image extentions
 page_exts = [".jpg", ".jpeg", ".png", ".gif"]
 
-valid_exts = ignored_file_exts + page_exts
+# Set rename extentions
+rename_exts = [".rename"]
+
+valid_exts = ignored_file_exts + page_exts + rename_exts
+ignored_file_exts += rename_exts
+
+# Get main directory
+main_dir = os.path.sep.join(input_dir.rstrip(os.path.sep).split(os.path.sep)[:-1])
+
+# Prefix to prepend to temporary file/folder names
+temp_name_prepend = "__temp__"
+
+# Make final input dir names
+if purify:
+    # Make temp directory name
+    final_input_dir_name = temp_name_prepend + input_dir_name
+    final_input_dir = os.path.join(main_dir, final_input_dir_name)
+else:
+    # The original directories
+    final_input_dir = input_dir
+    final_input_dir_name = input_dir_name  
 
 # Save image paths (and empty/ignored-file dirs) paths to ordered list
 page_list = list()
+# Make dict with rename (dir, bm_name)
+page_dir_rename_dict = dict()
 for p in input_dir_list:
     if os.path.isfile(p):
         # Check if it's an invalid extention, and if so, fully ignore it
-        p_ext = os.path.splitext(p)[-1].lower()
+        p_path, p_filename = os.path.split(p)
+        p_basename, p_ext = os.path.splitext(p_filename)
+        p_ext = p_ext.lower()
+        if p_ext == "":
+            # No name, just extention
+            p_ext = p_basename
+        
         if p_ext not in valid_exts:
             print("[WARNING]: Unsupported file, ignoring: '{}'".format(p))
             continue
@@ -224,34 +252,50 @@ for p in input_dir_list:
         page_list.append(p)
     elif os.path.isdir(p):
         # Get files and directories inside p
-        p_list = [str(x) for x in sorted(Path(p).glob('*'))]
+        p_list = [os.path.realpath(str(x)) for x in sorted(Path(p).glob('*'))]
         p_dir_list = [x for x in p_list if os.path.isdir(x)]
         p_file_list = [x for x in p_list if os.path.isfile(x)]
         
-        # Make ignored file list
+        # Make file list without ignored files
         p_file_list_ignored = list()
+        # Also update page_dir_rename_dict
         for x in p_file_list:
-            x_ext = os.path.splitext(x)[-1].lower()
-            if (x_ext not in ignored_file_exts) and (x_ext in valid_exts):
-                p_file_list_ignored.append(x)
+            x_path, x_filename = os.path.split(x)
+            x_basename, x_ext = os.path.splitext(x_filename)
+            x_ext = x_ext.lower()
+            if x_ext == "":
+                # No name, just extention
+                x_ext = x_basename
+            
+            # Check if it's a valid extention
+            if x_ext in valid_exts:
+                # If not ignored file, append to file list
+                if x_ext not in ignored_file_exts:
+                    p_file_list_ignored.append(x)
+                # If it's a rename file, parse and append to rename dict
+                if x_ext in rename_exts:
+                    # If purify, make sure it's referencing the final input dir
+                    if purify:
+                        relative_x_path = os.path.relpath(x_path, input_dir)
+                        rename_dir = os.path.join(final_input_dir, relative_x_path)
+                    else:
+                        rename_dir = x_path
+                    
+                    #TODO: Parse .rename files
+                    rename_name = "PLACEHOLDER RENAME - TODO: READ FROM .rename FILE"
+                    
+                    
+                    page_dir_rename_dict[rename_dir] = rename_name
         
         # Test if it's empty or contains only ignored files
         if len(p_dir_list) <= 0 and len(p_file_list_ignored) <= 0:
             # Add path (used to make "empty" bookmarks)
             page_list.append(p)
 
-# Prefix to prepend to temporary file/folder names
-temp_name_prepend = "__temp__"
-
-main_dir = os.path.sep.join(input_dir.rstrip(os.path.sep).split(os.path.sep)[:-1])
-
 # Run purification (save to temporary directory)
 if purify:
     print()
     print("Purifying pages...")
-    # Make temp directory name
-    final_input_dir_name = temp_name_prepend + input_dir_name
-    final_input_dir = os.path.join(main_dir, final_input_dir_name)
     
     # Delete temp dir (or file with same name) if it already exists
     if os.path.exists(final_input_dir):
@@ -307,10 +351,6 @@ if purify:
 
     # Update page_list with new images/paths
     page_list = new_page_list
-else:
-    # Do not purify
-    final_input_dir = input_dir
-    final_input_dir_name = input_dir_name   
 
 # Make page_list but with only files
 page_list_files = [p for p in page_list if os.path.isfile(p)]
@@ -368,8 +408,9 @@ def iterdict(d, base_path="", empty_parents_in=list()):
     global path_list
     global last_page_index
 
-    for k, v in d.items(): 
-        filename = os.path.join(base_path, os.path.sep.join(path_list + [k]))
+    for k, v in d.items():
+        filepath = os.path.join(base_path, os.path.sep.join(path_list))
+        filename = os.path.join(filepath, k)
         filename = os.path.realpath(filename)
         
         # Get parent bookmark
@@ -378,11 +419,15 @@ def iterdict(d, base_path="", empty_parents_in=list()):
         else:
             bm_parent = None
         
-        # Remove leading order numbers from dir name (if applicable)
-        if args["order_number_seperator"] == None:
-            bm_name = k
-        else:
+        # Get bookmark name
+        if filename in page_dir_rename_dict:
+            # Name is defined in a rename file
+            bm_name = page_dir_rename_dict[filename]
+        elif args["order_number_seperator"] != None:
+            # Remove leading order numbers from dir name
             bm_name = args["order_number_seperator"].join(k.split(args["order_number_seperator"])[1:]).strip(" ")
+        else:
+            bm_name = k
         
         page_ref = last_page_index + 1
         
