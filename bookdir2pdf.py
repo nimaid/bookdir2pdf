@@ -283,8 +283,7 @@ for p in input_dir_list:
                     else:
                         rename_dir = x_path
                     
-                    #TODO: Parse .rename files
-                    #rename_name = "PLACEHOLDER RENAME - TODO: READ FROM .rename FILE"
+                    # Parse .rename files
                     with open(x) as f:
                         rename_file_contents = f.read()
                     
