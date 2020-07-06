@@ -2,6 +2,7 @@
 
 import argparse, os, sys
 from pathlib import Path
+import re
 
 # Test if this is a PyInstaller executable or a .py file
 if getattr(sys, 'frozen', False):
@@ -59,6 +60,9 @@ if not os.path.isabs(input_dir):
     input_dir = os.path.join(COMMAND_PATH, input_dir)
 
 input_dir_name = input_dir.strip(os.path.sep).split(os.path.sep)[-1]
+
+# Get main directory
+main_dir = os.path.sep.join(input_dir.rstrip(os.path.sep).split(os.path.sep)[:-1])
 
 # Limit DPI
 if args["dpi"] != None:
@@ -135,34 +139,6 @@ if purify:
 if args["table_of_contents"] and args["purify"] != None:
     print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-c) arguments were passed, will not purify images.")
 
-if args["table_of_contents"]:
-    print("Will only print the Table of Contents, will NOT process images or save PDF.")
-else:
-    # Resolve output filename
-    if args["output_file"] == None:
-        output_file = input_dir + os.path.extsep + "pdf"
-    else:
-        out_dir, out_name = os.path.split(args["output_file"])
-        out_name_split = out_name.split(os.path.extsep)
-        if len(out_name_split) >= 2:
-            # There is an extention
-            output_file = args["output_file"]
-            if out_name_split[-1].lower() != "pdf":
-                output_file += os.path.extsep + "pdf"
-        else:
-            # No extention provided
-            output_file = args["output_file"] + os.path.extsep + "pdf"
-    
-    output_file = os.path.realpath(output_file)
-    
-    # Print target filename
-    if args["output_file"] == None:
-        print("No output filename supplied, using '{}'".format(output_file))
-    else:
-        print("Will save PDF as '{}'".format(output_file))
-    
-    output_file_dir, output_file_name = os.path.split(output_file)
-
 # Set PDF title
 if args["title"] != None:
     pdf_title = args["title"]
@@ -184,6 +160,40 @@ if args["author"] != None:
         print("PDF author will be set to '{}'".format(pdf_author))
 else:
     pdf_author = PROG_FILE_NAME
+
+def get_valid_filename(s):
+    s = str(s).strip()
+    return re.sub(r'(?u)[^-\w.\ ,\!]', '_', s)
+
+if args["table_of_contents"]:
+    print("Will only print the Table of Contents, will NOT process images or save PDF.")
+else:
+    # Resolve output filename
+    if args["output_file"] == None:
+        #TODO: Default to title if possible
+        pdf_title_safe_filename = get_valid_filename(pdf_title)
+        output_file = os.path.join(main_dir, pdf_title_safe_filename) + os.path.extsep + "pdf"
+    else:
+        out_dir, out_name = os.path.split(args["output_file"])
+        out_name_split = out_name.split(os.path.extsep)
+        if len(out_name_split) >= 2:
+            # There is an extention
+            output_file = args["output_file"]
+            if out_name_split[-1].lower() != "pdf":
+                output_file += os.path.extsep + "pdf"
+        else:
+            # No extention provided
+            output_file = args["output_file"] + os.path.extsep + "pdf"
+    
+    output_file = os.path.realpath(output_file)
+    
+    # Print target filename
+    if args["output_file"] == None:
+        print("No output filename supplied, using '{}'".format(output_file))
+    else:
+        print("Will save PDF as '{}'".format(output_file))
+    
+    output_file_dir, output_file_name = os.path.split(output_file)
 
 # Do main imports
 import img2pdf
@@ -209,9 +219,6 @@ rename_exts = [".rename"]
 
 valid_exts = ignored_file_exts + page_exts + rename_exts
 ignored_file_exts += rename_exts
-
-# Get main directory
-main_dir = os.path.sep.join(input_dir.rstrip(os.path.sep).split(os.path.sep)[:-1])
 
 # Prefix to prepend to temporary file/folder names
 temp_name_prepend = "__temp__"
