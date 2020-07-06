@@ -215,7 +215,7 @@ ignored_file_exts = [".ignore", ".db"]
 page_exts = [".jpg", ".jpeg", ".png", ".gif"]
 
 # Set rename extentions
-rename_exts = [".rename", ".name". ".title"]
+rename_exts = [".rename", ".name", ".title"]
 
 valid_exts = ignored_file_exts + page_exts + rename_exts
 ignored_file_exts += rename_exts
