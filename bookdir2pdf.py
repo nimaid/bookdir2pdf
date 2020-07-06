@@ -246,7 +246,9 @@ for p in input_dir_list:
         
         # Test if it should be ignored, and if so, fully ignore it
         if p_ext in ignored_file_exts:
-            print("Ignoring file: '{}'".format(p))
+            if p_ext not in rename_exts:
+                # Don't print if it's a rename file (not really ignoring per-se)
+                print("Ignoring file: '{}'".format(p))
             continue
             
         page_list.append(p)
