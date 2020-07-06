@@ -81,7 +81,7 @@ if args["table_of_contents"]:
 if purify:
     # Defaults
     sharpen_factor = 2
-    thresh_setting = 160
+    thresh_setting = 170
     
     for p_arg in purify_args:
         p_arg_split = p_arg.split("=")
