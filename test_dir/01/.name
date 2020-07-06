@@ -1,0 +1,1 @@
+Empty Directory .name File Example (allows for forbidden characters like <>?\/*: and also means you can make a really long name like this without hitting the path length limit of your OS)

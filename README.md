@@ -52,11 +52,12 @@ $ bookdir2pdf.py --input_dir test_dir/ --table_of_contents
 Example PDF - Table of Contents
 -------------------------------
 Page #1    Cover Page
-Page #2    --- Empty Directory Example #1
+Page #2    --- Empty Directory Example
 Page #2    --- --- Nested Empty Directory Level 1
 Page #2    --- --- --- Nested Empty Directory Level 2
 Page #2    --- --- --- --- Nested Empty Directory Level 3
-Page #2    Empty Directory Example #2
+Page #2    Empty Directory .name File Example (allows for forbidden characters like <>?\/*: and also means you can make a really long name like this without hitting the path le
+ngth limit of your OS)
 Page #2    The First Part
 Page #2    --- Chapter 1
 Page #4    --- Chapter 2
@@ -66,3 +67,4 @@ Page #8    --- Chapter 4
 Page #10   The Final Part
 Page #10   --- Chapter 5
 Page #12   --- Chapter 6
+```
