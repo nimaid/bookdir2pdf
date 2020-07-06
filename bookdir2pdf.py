@@ -390,6 +390,7 @@ if not args["table_of_contents"]:
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     print("Saving temporary PDF '{}'".format(temp_pdf))
     with open(temp_pdf, "wb") as f:
+        #TODO: DPI not working for Electronotes?
         f.write(img2pdf.convert(page_list_files, dpi=args["dpi"]))
     
     # Load PDF into PyPDF2
