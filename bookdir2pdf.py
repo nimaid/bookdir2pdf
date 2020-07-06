@@ -163,7 +163,7 @@ else:
 
 def get_valid_filename(s):
     s = str(s).strip()
-    return re.sub(r'(?u)[^-\w.\ ,\!]', '_', s)
+    return re.sub(r'(?u)[^-\w.\ ,\!\'\&]', '_', s)
 
 if args["table_of_contents"]:
     print("Will only print the Table of Contents, will NOT process images or save PDF.")
@@ -215,7 +215,7 @@ ignored_file_exts = [".ignore", ".db"]
 page_exts = [".jpg", ".jpeg", ".png", ".gif"]
 
 # Set rename extentions
-rename_exts = [".rename"]
+rename_exts = [".rename", ".name". ".title"]
 
 valid_exts = ignored_file_exts + page_exts + rename_exts
 ignored_file_exts += rename_exts
