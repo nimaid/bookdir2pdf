@@ -346,7 +346,8 @@ if purify:
                     # Apply threshold
                     thresh = sharpen.point(lambda p: p > thresh_setting and 255)  
                     
-                    final_page_im = thresh
+                    # Make 1 bit
+                    final_page_im = thresh.convert('1')
                 else:
                     final_page_im = page_im
             
