@@ -336,10 +336,15 @@ for p in input_dir_list:
             page_list.append(p)
 print("\tDone scanning directory!")
 
+# Get number of pages
+num_pages = len([p for p in page_list if os.path.isfile(p)])
+print("\tPage count: {}".format(num_pages))
+
 # Run purification (save to temporary directory)
 if purify:
     print()
     print("-------- PURIFICATION --------")
+    print("Saving purified images to temporary directory: {}".format(final_input_dir))
     
     # Delete temp dir (or file with same name) if it already exists
     if os.path.exists(final_input_dir):
@@ -375,7 +380,7 @@ if purify:
             # It's an image file
             with Image.open(p) as page_im:
                 if purify:
-                    print("[PURIFY]: {}".format(p))
+                    print("[PURIFY] ({}/{}): {}".format(x+1, num_pages, p))
                     # Make greyscale
                     gray = page_im.convert('L')
                     
@@ -403,9 +408,6 @@ page_list_files = [p for p in page_list if os.path.isfile(p)]
 # Get size from first page
 with Image.open(page_list_files[0]) as cover:
     width, height = cover.size
-
-# Get number of pages
-num_pages = len(page_list_files)
 
 # Create nested ordered dictionary from list
 page_dict = OrderedDict()
