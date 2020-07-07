@@ -494,7 +494,11 @@ def iterdict(d, base_path="", empty_parents_in=list()):
             bm_name = page_dir_rename_dict[filename]
         elif args["order_number_separator"] != None:
             # Remove leading order numbers from dir name
-            bm_name = args["order_number_separator"].join(k.split(args["order_number_separator"])[1:]).strip(" ")
+            k_split = k.split(args["order_number_separator"])
+            if len(k_split) <= 1:
+                bm_name = k
+            else:
+                bm_name = args["order_number_separator"].join(k_split[1:]).strip(" ")
         else:
             bm_name = k
         
