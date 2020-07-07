@@ -29,17 +29,17 @@ def dir_path(string):
         raise NotADirectoryError(string)
 
 # TODO: Add usage examples
-ap = argparse.ArgumentParser(description="Merge nested image direcotry into PDF with nested bookmarks.")
+ap = argparse.ArgumentParser(description="Merge nested image directory into PDF with nested bookmarks.")
 ap.add_argument("-i", "--input_dir", type=dir_path, required=True,
     help="path to nested image directory to merge")
 ap.add_argument("-o", "--output_file", type=str, default=None,
     help="output file path ( defaults to [input_dir].pdf )")
-ap.add_argument("-s", "--order_number_seperator", type=str, default=None,
-    help="the character used to seperate the direcotry ordering numbers from the bookmark names ( like '.' or ')' )")
+ap.add_argument("-s", "--order_number_separator", type=str, default=None,
+    help="the character used to separate the directory ordering numbers from the bookmark names ( like '.' or ')' )")
 ap.add_argument("-c", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=str, 
-    help="purify scanned B&W page ( greyscale, sharpen, threshold ), named sub-argumets: (sharpen|s) (threshold|t)")
+    help="purify scanned B&W page ( greyscale, sharpen, threshold ), named sub-arguments: (sharpen|s) (threshold|t)")
 ap.add_argument("-d", "--dpi", type=int, default=300,
     help="dots-per-inch of the input images")
 ap.add_argument("-t", "--title", type=str, default=None,
@@ -94,7 +94,7 @@ if purify:
         if len(p_arg_split) != 2:
             raise argparse.ArgumentTypeError("Invalid argument format. Use arg_name=arg_value.")
 
-        # Get name and value seperately
+        # Get name and value separately
         p_arg_name, p_arg_value = [x.lower().strip() for x in p_arg_split]
 
         # Parse purify named sub-arguments
@@ -160,12 +160,12 @@ if not args["table_of_contents"]:
         out_dir, out_name = os.path.split(args["output_file"])
         out_name_split = out_name.split(os.path.extsep)
         if len(out_name_split) >= 2:
-            # There is an extention
+            # There is an extension
             output_file = args["output_file"]
             if out_name_split[-1].lower() != "pdf":
                 output_file += os.path.extsep + "pdf"
         else:
-            # No extention provided
+            # No extension provided
             output_file = args["output_file"] + os.path.extsep + "pdf"
     
     output_file = os.path.realpath(output_file)  
@@ -273,6 +273,20 @@ for p in input_dir_list:
                 # Don't print if it's a rename file (not really ignoring per-se)
                 print("[IGNORING]: {}".format(p))
             continue
+        
+        # Test if the path length is nearing the Windows limit
+        windows_path_limit = 260
+        unix_path_limit = 4096
+        wiggle_room = 40
+        p_path_length = len(p)
+        min_path_length = min(windows_path_limit, unix_path_limit)
+        if p_path_length > min_path_length - wiggle_room:
+            print("[WARNING] Dangerously long pathname: {}".format(p))
+            print("\tPath length: {} characters".format(p_path_length))
+            print("\tWindows maximum path length: {} characters".format(windows_path_limit))
+            print("\tUnix maximum path length: {} characters".format(unix_path_limit))
+            print("\tRenaming, moving, or downloading this folder may cause errors unless you shorten the names of the file/folders.")
+            print("\Recommended action: Use '.name' files (instead of the folder names) to define bookmark names.")
             
         page_list.append(p)
     elif os.path.isdir(p):
