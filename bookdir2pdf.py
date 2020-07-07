@@ -318,6 +318,7 @@ for p in input_dir_list:
         if len(p_dir_list) <= 0 and len(p_file_list_ignored) <= 0:
             # Add path (used to make "empty" bookmarks)
             page_list.append(p)
+print("\tDone scanning directory!")
 
 # Run purification (save to temporary directory)
 if purify:
@@ -400,6 +401,7 @@ for p in page_list:
             current_level[part] = OrderedDict()
         current_level = current_level[part]
 
+print("\tDone purifying images!")
 
 
 # Create PDF from page_list(no bookmarks)
@@ -576,6 +578,8 @@ if not args["table_of_contents"]:
     # Save final PDF
     with open(output_file, 'wb') as f:
         output_pdf.write(f)
+    
+    print("\tDone!")
     
     print()
     print("-------- CLEAN UP --------")
