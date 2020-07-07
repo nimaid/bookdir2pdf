@@ -69,6 +69,8 @@ main_dir = os.path.sep.join(input_dir.rstrip(os.path.sep).split(os.path.sep)[:-1
 if args["dpi"] != None:
     if (args["dpi"] < 72) or (args["dpi"] > 4800):
         raise argparse.ArgumentTypeError("DPI must be 72 <= DPI <= 4800.")
+    else:
+        pdf_dpi = args["dpi"]
 
 # Test if/which purify flavor is being used
 if args["purify"] != None:
@@ -194,7 +196,8 @@ if args["author"] != None:
     else:
         print("PDF author: {}".format(pdf_author))
 
-# Print input directory
+print("PDF resolution: {} DPI".format(pdf_dpi))
+
 print("Input directory: {}".format(input_dir))
 
 if args["table_of_contents"]:
@@ -424,7 +427,7 @@ if not args["table_of_contents"]:
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     print("Creating PDF document from image files...")
     #TODO: DPI not working for Electronotes?
-    temp_pdf_file_binary = img2pdf.convert(page_list_files, dpi=args["dpi"])
+    temp_pdf_file_binary = img2pdf.convert(page_list_files, dpi=pdf_dpi)
     print("\tDone!")
     
     print("Saving temporary PDF: {}".format(temp_pdf))
