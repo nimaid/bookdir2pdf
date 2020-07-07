@@ -266,14 +266,14 @@ for p in input_dir_list:
             p_ext = p_basename
         
         if p_ext not in valid_exts:
-            print("UNSUPPORTED FILE, ignoring: {}".format(p))
+            print("[UNSUPPORTED]: {}".format(p))
             continue
         
         # Test if it should be ignored, and if so, fully ignore it
         if p_ext in ignored_file_exts:
             if p_ext not in rename_exts:
                 # Don't print if it's a rename file (not really ignoring per-se)
-                print("Ignoring file: {}".format(p))
+                print("[IGNORING]: {}".format(p))
             continue
             
         page_list.append(p)
