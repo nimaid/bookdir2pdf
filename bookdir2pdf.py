@@ -563,6 +563,8 @@ def iterdict(d, base_path="", empty_parents_in=list()):
                 last_page_index = page_index
 iterdict(page_dict, base_path=final_input_dir)
 
+print("\tPage count: {}".format(num_pages))
+
 if not args["table_of_contents"]:
     print()
     print("-------- SAVE PDF --------")
