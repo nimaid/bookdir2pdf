@@ -48,7 +48,7 @@ ap.add_argument("-a", "--author", type=str, default=None,
     help="the PDF author ( defaults to '{}', pass '' for no author )".format(PROG_FILE_NAME))
 args = vars(ap.parse_args())
 
-print()
+
 
 # Resolve input dir into absolute path (relative to working directory!)
 input_dir = args["input_dir"]
@@ -132,43 +132,26 @@ if purify:
                 raise argparse.ArgumentTypeError("(--purify | -p) threshold must be a positive float <= 255.")
         else:
             raise argparse.ArgumentTypeError("'{}' is not a valid option for (--purify | -p).".format(p_arg_name))
-    
-    print("Will purify with a sharpening amount of {} and a threshold of {}.".format(sharpen_factor, thresh_setting))
-    print()
-
-if args["table_of_contents"] and args["purify"] != None:
-    print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-c) arguments were passed, will not purify images.")
 
 # Set PDF title
 if args["title"] != None:
     pdf_title = args["title"]
-    print()
-    if len(pdf_title) <= 0:
-        print("PDF will have no title.")
-    else:
-        print("PDF title will be set to '{}'".format(pdf_title))
 else:
     pdf_title = input_dir_name
 
 # Set PDF author
 if args["author"] != None:
     pdf_author = args["author"].strip()
-    print()
-    if len(pdf_author) <= 0:
-        print("PDF will have no author.")
-    else:
-        print("PDF author will be set to '{}'".format(pdf_author))
 else:
-    pdf_author = PROG_FILE_NAME
+    pdf_author = ""
 
+# Make any string int oa valid filename
 def get_valid_filename(s):
     s = str(s).strip()
     return re.sub(r'(?u)[^-\w.\ ,\!\'\&]', '_', s)
 
-if args["table_of_contents"]:
-    print("Will only print the Table of Contents, will NOT process images or save PDF.")
-else:
-    # Resolve output filename
+# Resolve output filename
+if not args["table_of_contents"]:
     if args["output_file"] == None:
         #TODO: Default to title if possible
         pdf_title_safe_filename = get_valid_filename(pdf_title)
@@ -185,15 +168,47 @@ else:
             # No extention provided
             output_file = args["output_file"] + os.path.extsep + "pdf"
     
-    output_file = os.path.realpath(output_file)
-    
+    output_file = os.path.realpath(output_file)  
+    output_file_dir, output_file_name = os.path.split(output_file)
+
+
+print()
+
+
+# Print main program warnings
+if args["table_of_contents"] and args["purify"] != None:
+    print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-c) arguments were passed, will not purify images.")
+
+# Print settings
+print()
+print("-------- PDF SETTINGS --------")
+if args["title"] != None:
+    if len(pdf_title) <= 0:
+        print("PDF will have no title.")
+    else:
+        print("PDF title will be set to '{}'".format(pdf_title))
+
+if args["author"] != None:
+    if len(pdf_author) <= 0:
+        print("PDF will have no author.")
+    else:
+        print("PDF author will be set to '{}'".format(pdf_author))
+
+if args["table_of_contents"]:
+    print("Will only print the Table of Contents, will NOT process images or save PDF.")
+else:
     # Print target filename
     if args["output_file"] == None:
         print("No output filename supplied, using '{}'".format(output_file))
     else:
         print("Will save PDF as '{}'".format(output_file))
-    
-    output_file_dir, output_file_name = os.path.split(output_file)
+
+if purify:
+    print("Will purify with a sharpening amount of {} and a threshold of {}.".format(sharpen_factor, thresh_setting))
+
+
+print()
+
 
 # Do main imports
 import img2pdf
@@ -203,7 +218,7 @@ from PyPDF2 import PdfFileWriter, PdfFileReader
 import shutil
 
 print()
-print("Scanning input directory...")
+print("-------- DIRECTORY SCANNING --------")
 
 # Walk though folder structure (recursive alphabetical, include all files/folders)
 input_dir_list = [str(p) for p in sorted(Path(input_dir).glob('**/*'))]
@@ -306,7 +321,7 @@ for p in input_dir_list:
 # Run purification (save to temporary directory)
 if purify:
     print()
-    print("Purifying pages...")
+    print("-------- PURIFICATION --------")
     
     # Delete temp dir (or file with same name) if it already exists
     if os.path.exists(final_input_dir):
@@ -342,7 +357,7 @@ if purify:
             # It's an image file
             with Image.open(p) as page_im:
                 if purify:
-                    print("\tPurifying '{}'".format(p))
+                    print("Purifying '{}'".format(p))
                     # Make greyscale
                     gray = page_im.convert('L')
                     
@@ -394,17 +409,25 @@ if not args["table_of_contents"]:
         f.write(img2pdf.convert(page_list_files, dpi=args["dpi"]))
     
     # Load PDF into PyPDF2
-    print()
     print("Loading temporary PDF into editing library...")
     output_pdf = PdfFileWriter()
     input_pdf_file = open(temp_pdf, 'rb')
     input_pdf = PdfFileReader(input_pdf_file)
     output_pdf.appendPagesFromReader(input_pdf)
 
+# Get ToC title
+toc_title = pdf_title
+if len(author) > 0:
+    toc_title += " by " + author
+toc_title += " - Table of Contents"
+
+# Save ToC lines to list
+#TODO: refactor ToC generation
+toc_lines = [toc_title]
+
 # Add nested bookmarks from page_dict
 print()
 if args["table_of_contents"]:
-    toc_title = pdf_title + " - Table of Contents"
     print(toc_title)
     print(''.join(['-' for x in range(len(toc_title))]))
 else:
@@ -412,7 +435,7 @@ else:
 ident = ""
 ident_str = "--- "
 pagenum_pre = "Page #"
-pagenum_space = 5
+pagenum_space = 6
 last_page_index = -1 # Because we want the next page to be 0
 path_list = list()
 bookmark_list = list()
@@ -534,14 +557,21 @@ if not args["table_of_contents"]:
     print("Saving bookmarked PDF '{}'".format(output_file))
     with open(output_file, 'wb') as f:
         output_pdf.write(f)
-
-    # Delete temporary PDF
+    
     print()
+    print("-------- CLEAN UP --------")
+    
+    # Delete temporary PDF
     print("Deleting temporary PDF '{}'".format(temp_pdf))
     input_pdf_file.close()
     os.remove(temp_pdf)
 
 if purify and (os.path.realpath(final_input_dir) != os.path.realpath(input_dir)):
-    print()
     print("Delete temporary directory '{}'".format(final_input_dir))
     shutil.rmtree(final_input_dir)
+
+print()
+print("-------- JOB COMPLETE --------")
+print("Final PDF location: '{}'".format(output_file))
+print("Page count: {}".format(num_pages))
+print("File size: () bytes".format(os.path.getsize(output_file)))
