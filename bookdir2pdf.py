@@ -65,6 +65,7 @@ input_dir_name = input_dir.strip(os.path.sep).split(os.path.sep)[-1]
 main_dir = os.path.sep.join(input_dir.rstrip(os.path.sep).split(os.path.sep)[:-1])
 
 # Limit DPI
+#TODO: Look in main dir for .dpi
 if args["dpi"] != None:
     if (args["dpi"] < 72) or (args["dpi"] > 4800):
         raise argparse.ArgumentTypeError("DPI must be 72 <= DPI <= 4800.")
@@ -134,18 +135,20 @@ if purify:
             raise argparse.ArgumentTypeError("'{}' is not a valid option for (--purify | -p).".format(p_arg_name))
 
 # Set PDF title
+#TODO: Look in main dir for .name/.title/.rename
 if args["title"] != None:
     pdf_title = args["title"]
 else:
     pdf_title = input_dir_name
 
 # Set PDF author
+#TODO: Look in main dir for .author
 if args["author"] != None:
     pdf_author = args["author"].strip()
 else:
     pdf_author = ""
 
-# Make any string int oa valid filename
+# Make any string into a valid filename
 def get_valid_filename(s):
     s = str(s).strip()
     return re.sub(r'(?u)[^-\w.\ ,\!\'\&]', '_', s)
@@ -153,7 +156,7 @@ def get_valid_filename(s):
 # Resolve output filename
 if not args["table_of_contents"]:
     if args["output_file"] == None:
-        #TODO: Default to title if possible
+        # Default to title
         pdf_title_safe_filename = get_valid_filename(pdf_title)
         output_file = os.path.join(main_dir, pdf_title_safe_filename) + os.path.extsep + "pdf"
     else:
@@ -455,6 +458,7 @@ print(''.join(['-' for x in range(len(toc_title))]))
 
 # Save ToC lines to list
 #TODO: refactor ToC generation
+#TODO: Save ToC to file option
 toc_lines = [toc_title]
 
 # Add nested bookmarks from page_dict
