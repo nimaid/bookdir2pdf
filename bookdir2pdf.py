@@ -171,12 +171,9 @@ if not args["table_of_contents"]:
     output_file = os.path.realpath(output_file)  
     output_file_dir, output_file_name = os.path.split(output_file)
 
-
-print()
-
-
 # Print main program warnings
 if args["table_of_contents"] and args["purify"] != None:
+    print()
     print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-c) arguments were passed, will not purify images.")
 
 # Print settings
@@ -194,6 +191,9 @@ if args["author"] != None:
     else:
         print("PDF author: {}".format(pdf_author))
 
+# Print input directory
+print("Input directory: {}".format(input_dir))
+
 if args["table_of_contents"]:
     print("Will only print the Table of Contents, will NOT process images or save PDF.")
 else:
@@ -209,8 +209,6 @@ if purify:
     print("\tSharpening factor: {}".format(sharpen_factor))
     print("\tThreshold: {}.".format(thresh_setting))
 
-
-print()
 
 
 # Do main imports
@@ -403,12 +401,11 @@ for p in page_list:
         current_level = current_level[part]
 
 
-print()
-print("-------- PDF CREATION --------")
 
-
+# Create PDF from page_list(no bookmarks)
 if not args["table_of_contents"]:
-    # Create PDF from page_list(no bookmarks)
+    print()
+    print("-------- PDF CREATION --------")
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     print("Creating PDF document from image files...")
     #TODO: DPI not working for Electronotes?
