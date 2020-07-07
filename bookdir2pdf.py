@@ -198,11 +198,7 @@ if args["table_of_contents"]:
     print("Will only print the Table of Contents, will NOT process images or save PDF.")
 else:
     # Print target filename
-    if args["output_file"] == None:
-        print("No output filename supplied.")
-        print("\tDefault: {}".format(output_file))
-    else:
-        print("Output filename: {}".format(output_file))
+    print("Output filename: {}".format(output_file))
 
 if purify:
     print("Will purify documents:")
@@ -489,9 +485,9 @@ def iterdict(d, base_path="", empty_parents_in=list()):
         if filename in page_dir_rename_dict:
             # Name is defined in a rename file
             bm_name = page_dir_rename_dict[filename]
-        elif args["order_number_seperator"] != None:
+        elif args["order_number_separator"] != None:
             # Remove leading order numbers from dir name
-            bm_name = args["order_number_seperator"].join(k.split(args["order_number_seperator"])[1:]).strip(" ")
+            bm_name = args["order_number_separator"].join(k.split(args["order_number_separator"])[1:]).strip(" ")
         else:
             bm_name = k
         
@@ -602,10 +598,12 @@ if not args["table_of_contents"]:
     print("Deleting temporary PDF: {}".format(temp_pdf))
     input_pdf_file.close()
     os.remove(temp_pdf)
+    print("\tDone!")
 
 if purify and (os.path.realpath(final_input_dir) != os.path.realpath(input_dir)):
     print("Delete temporary directory: {}".format(final_input_dir))
     shutil.rmtree(final_input_dir)
+    print("\tDone!")
 
 print()
 print("-------- JOB COMPLETE --------")
