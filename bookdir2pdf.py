@@ -205,7 +205,7 @@ else:
         print("Output filename: {}".format(output_file))
 
 if purify:
-    print("Will purify document:")
+    print("Will purify documents:")
     print("\tSharpening factor: {}".format(sharpen_factor))
     print("\tThreshold: {}.".format(thresh_setting))
 
@@ -402,13 +402,23 @@ for p in page_list:
             current_level[part] = OrderedDict()
         current_level = current_level[part]
 
+
+print()
+print("-------- PDF CREATION --------")
+
+
 if not args["table_of_contents"]:
     # Create PDF from page_list(no bookmarks)
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
+    print("Creating PDF document from image files...")
+    #TODO: DPI not working for Electronotes?
+    temp_pdf_file_binary = img2pdf.convert(page_list_files, dpi=args["dpi"])
+    print("\tDone!")
+    
     print("Saving temporary PDF: {}".format(temp_pdf))
     with open(temp_pdf, "wb") as f:
-        #TODO: DPI not working for Electronotes?
-        f.write(img2pdf.convert(page_list_files, dpi=args["dpi"]))
+        f.write(temp_pdf_file_binary)
+    print("\tDone!")
     
     # Load PDF into PyPDF2
     print("Loading temporary PDF into editing library...")
@@ -416,6 +426,13 @@ if not args["table_of_contents"]:
     input_pdf_file = open(temp_pdf, 'rb')
     input_pdf = PdfFileReader(input_pdf_file)
     output_pdf.appendPagesFromReader(input_pdf)
+    print("\tDone!")
+
+
+print()
+print("-------- BOOKMARK CREATION --------")
+print("Table of Contents will be printed as bookmarks are created.")
+print()
 
 # Get ToC title
 toc_title = pdf_title
@@ -423,17 +440,15 @@ if len(pdf_author) > 0:
     toc_title += " by " + pdf_author
 toc_title += " - Table of Contents"
 
+# Print ToC header
+print(toc_title)
+print(''.join(['-' for x in range(len(toc_title))]))
+
 # Save ToC lines to list
 #TODO: refactor ToC generation
 toc_lines = [toc_title]
 
 # Add nested bookmarks from page_dict
-print()
-if args["table_of_contents"]:
-    print(toc_title)
-    print(''.join(['-' for x in range(len(toc_title))]))
-else:
-    print("Creating nested bookmarks...")
 ident = ""
 ident_str = "--- "
 pagenum_pre = "Page #"
