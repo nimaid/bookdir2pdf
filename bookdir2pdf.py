@@ -375,13 +375,15 @@ if purify:
         Path(os.path.dirname(p)).mkdir(parents=True, exist_ok=True)
     
     # Process image files
+    curr_page = 0 # Will go to 1 before first print
     for x, p in enumerate(page_list):
         final_p = new_page_list[x]
         if os.path.isfile(p):
             # It's an image file
+            curr_page += 1
             with Image.open(p) as page_im:
                 if purify:
-                    print("[PURIFY] ({}/{}): {}".format(x+1, num_pages, p))
+                    print("[PURIFY] ({}/{}): {}".format(curr_page, num_pages, p))
                     # Make greyscale
                     gray = page_im.convert('L')
                     
