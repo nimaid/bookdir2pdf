@@ -401,7 +401,6 @@ for p in page_list:
 
 if not args["table_of_contents"]:
     # Create PDF from page_list(no bookmarks)
-    print()
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     print("Saving temporary PDF '{}'".format(temp_pdf))
     with open(temp_pdf, "wb") as f:
@@ -417,8 +416,8 @@ if not args["table_of_contents"]:
 
 # Get ToC title
 toc_title = pdf_title
-if len(author) > 0:
-    toc_title += " by " + author
+if len(pdf_author) > 0:
+    toc_title += " by " + pdf_author
 toc_title += " - Table of Contents"
 
 # Save ToC lines to list
@@ -572,6 +571,7 @@ if purify and (os.path.realpath(final_input_dir) != os.path.realpath(input_dir))
 
 print()
 print("-------- JOB COMPLETE --------")
-print("Final PDF location: '{}'".format(output_file))
 print("Page count: {}".format(num_pages))
-print("File size: () bytes".format(os.path.getsize(output_file)))
+if not args["table_of_contents"]:
+    print("Final PDF location: '{}'".format(output_file))
+    print("File size: {} bytes".format(os.path.getsize(output_file)))
