@@ -196,7 +196,8 @@ if args["author"] != None:
     else:
         print("PDF author: {}".format(pdf_author))
 
-print("PDF resolution: {} DPI".format(pdf_dpi))
+if not args["table_of_contents"]:
+    print("PDF resolution: {} DPI".format(pdf_dpi))
 
 print("Input directory: {}".format(input_dir))
 
@@ -401,6 +402,8 @@ if purify:
 
     # Update page_list with new images/paths
     page_list = new_page_list
+    
+    print("\tDone purifying images!")
 
 # Make page_list but with only files
 page_list_files = [p for p in page_list if os.path.isfile(p)]
@@ -419,7 +422,6 @@ for p in page_list:
             current_level[part] = OrderedDict()
         current_level = current_level[part]
 
-print("\tDone purifying images!")
 
 
 # Create PDF from page_list(no bookmarks)
@@ -447,9 +449,10 @@ if not args["table_of_contents"]:
 
 
 print()
-print("-------- BOOKMARK CREATION --------")
-print("Table of Contents will be printed as bookmarks are created.")
-print()
+if not args["table_of_contents"]:
+    print("-------- BOOKMARK CREATION --------")
+    print("Table of Contents will be printed as bookmarks are created.")
+    print()
 
 # Get ToC title
 toc_title = pdf_title
