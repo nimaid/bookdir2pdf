@@ -564,6 +564,10 @@ def iterdict(d, base_path="", empty_parents_in=list()):
 iterdict(page_dict, base_path=final_input_dir)
 
 if not args["table_of_contents"]:
+    print()
+    print("-------- SAVE PDF --------")
+    print("Saving bookmarked PDF: {}".format(output_file))
+    
     # Add metadata to PDF
     output_pdf.addMetadata({
         '/Title': pdf_title,
@@ -571,7 +575,6 @@ if not args["table_of_contents"]:
         })
     
     # Save final PDF
-    print("Saving bookmarked PDF: {}".format(output_file))
     with open(output_file, 'wb') as f:
         output_pdf.write(f)
     
