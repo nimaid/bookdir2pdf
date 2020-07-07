@@ -186,25 +186,28 @@ if args["title"] != None:
     if len(pdf_title) <= 0:
         print("PDF will have no title.")
     else:
-        print("PDF title will be set to '{}'".format(pdf_title))
+        print("PDF title: {}".format(pdf_title))
 
 if args["author"] != None:
     if len(pdf_author) <= 0:
         print("PDF will have no author.")
     else:
-        print("PDF author will be set to '{}'".format(pdf_author))
+        print("PDF author: {}".format(pdf_author))
 
 if args["table_of_contents"]:
     print("Will only print the Table of Contents, will NOT process images or save PDF.")
 else:
     # Print target filename
     if args["output_file"] == None:
-        print("No output filename supplied, using '{}'".format(output_file))
+        print("No output filename supplied.")
+        print("\tDefault: {}".format(output_file))
     else:
-        print("Will save PDF as '{}'".format(output_file))
+        print("Output filename: {}".format(output_file))
 
 if purify:
-    print("Will purify with a sharpening amount of {} and a threshold of {}.".format(sharpen_factor, thresh_setting))
+    print("Will purify document:")
+    print("\tSharpening factor: {}".format(sharpen_factor))
+    print("\tThreshold: {}.".format(thresh_setting))
 
 
 print()
@@ -263,14 +266,14 @@ for p in input_dir_list:
             p_ext = p_basename
         
         if p_ext not in valid_exts:
-            print("[WARNING]: Unsupported file, ignoring: '{}'".format(p))
+            print("UNSUPPORTED FILE, ignoring: {}".format(p))
             continue
         
         # Test if it should be ignored, and if so, fully ignore it
         if p_ext in ignored_file_exts:
             if p_ext not in rename_exts:
                 # Don't print if it's a rename file (not really ignoring per-se)
-                print("Ignoring file: '{}'".format(p))
+                print("Ignoring file: {}".format(p))
             continue
             
         page_list.append(p)
@@ -357,7 +360,7 @@ if purify:
             # It's an image file
             with Image.open(p) as page_im:
                 if purify:
-                    print("Purifying '{}'".format(p))
+                    print("[PURIFY]: {}".format(p))
                     # Make greyscale
                     gray = page_im.convert('L')
                     
@@ -402,7 +405,7 @@ for p in page_list:
 if not args["table_of_contents"]:
     # Create PDF from page_list(no bookmarks)
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
-    print("Saving temporary PDF '{}'".format(temp_pdf))
+    print("Saving temporary PDF: {}".format(temp_pdf))
     with open(temp_pdf, "wb") as f:
         #TODO: DPI not working for Electronotes?
         f.write(img2pdf.convert(page_list_files, dpi=args["dpi"]))
@@ -553,7 +556,7 @@ if not args["table_of_contents"]:
         })
     
     # Save final PDF
-    print("Saving bookmarked PDF '{}'".format(output_file))
+    print("Saving bookmarked PDF: {}".format(output_file))
     with open(output_file, 'wb') as f:
         output_pdf.write(f)
     
@@ -561,17 +564,17 @@ if not args["table_of_contents"]:
     print("-------- CLEAN UP --------")
     
     # Delete temporary PDF
-    print("Deleting temporary PDF '{}'".format(temp_pdf))
+    print("Deleting temporary PDF: {}".format(temp_pdf))
     input_pdf_file.close()
     os.remove(temp_pdf)
 
 if purify and (os.path.realpath(final_input_dir) != os.path.realpath(input_dir)):
-    print("Delete temporary directory '{}'".format(final_input_dir))
+    print("Delete temporary directory: {}".format(final_input_dir))
     shutil.rmtree(final_input_dir)
 
 print()
 print("-------- JOB COMPLETE --------")
 print("Page count: {}".format(num_pages))
 if not args["table_of_contents"]:
-    print("Final PDF location: '{}'".format(output_file))
+    print("Final PDF location: {}".format(output_file))
     print("File size: {} bytes".format(os.path.getsize(output_file)))
