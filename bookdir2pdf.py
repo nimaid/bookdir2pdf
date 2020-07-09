@@ -184,17 +184,23 @@ if args["table_of_contents"] and args["purify"] != None:
 # Print settings
 print()
 print("-------- PDF SETTINGS --------")
+pdf_no_title_string = "PDF will have no title."
 if args["title"] != None:
     if len(pdf_title) <= 0:
-        print("PDF will have no title.")
+        print(pdf_no_title_string)
     else:
         print("PDF title: {}".format(pdf_title))
+else:
+    print(pdf_no_title_string)
 
+pdf_no_author_string = "PDF will have no author."
 if args["author"] != None:
     if len(pdf_author) <= 0:
-        print("PDF will have no author.")
+        print(pdf_no_author_string)
     else:
         print("PDF author: {}".format(pdf_author))
+else:
+    print(pdf_no_author_string)
 
 if not args["table_of_contents"]:
     print("PDF resolution: {} DPI".format(pdf_dpi))
