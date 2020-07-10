@@ -357,16 +357,12 @@ for p in input_dir_list:
         # Also update page_dir_rename_dict
         for x in p_file_list:
             x_path, x_filename = os.path.split(x)
-            x_basename, x_ext = os.path.splitext(x_filename)
-            x_ext = x_ext.lower()
-            if x_ext == "":
-                # No name, just extention
-                x_ext = x_basename
-            
+            x_ext = path_to_ext(x)
+
             # Check if it's a valid extention
             if x_ext in valid_exts:
                 # If not ignored file, append to file list
-                if x_ext not in ignored_file_exts:
+                if x_ext not in ignored_file_exts + metadata_file_exts:
                     p_file_list_ignored.append(x)
                 # If it's a rename file, parse and append to rename dict
                 if x_ext in rename_exts:
