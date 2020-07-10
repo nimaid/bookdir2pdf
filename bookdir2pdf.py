@@ -136,12 +136,67 @@ if purify:
         else:
             raise argparse.ArgumentTypeError("'{}' is not a valid option for (--purify | -p).".format(p_arg_name))
 
+# Fuction to read the first line in a text file
+def read_string_from_file(string_file_name):
+    with open(string_file_name, 'r', encoding='utf-8') as f:
+        result = f.read()
+    return result.strip().split("\n")[0].strip()
+
+# Function to make any string into a valid filename
+def get_valid_filename(s):
+    s = str(s).strip()
+    return re.sub(r'(?u)[^-\w.\ ,\!\'\&]', '_', s)
+
+# Function to turn a path into the name after the os.path.extsep (even if no name)
+def path_to_ext(path_in):
+    path_in_path, path_in_filename = os.path.split(path_in)
+    path_in_basename, path_in_ext = os.path.splitext(path_in_filename)
+    path_in_ext = path_in_ext.lower()
+    if path_in_ext == "":
+        # No name, just extention
+        path_in_ext = path_in_basename
+    if len(path_in_ext) <= 0:
+        # Must be a directory
+        return None
+    elif path_in_ext[0] != ".":
+        # No actual extention
+        return ""
+    else:
+        return path_in_ext
+
+# Set file extentions to ignore
+ignored_file_exts = [".ignore", ".db"]
+
+# Set valid image extentions
+page_exts = [".jpg", ".jpeg", ".png", ".gif"]
+
+# Set rename extentions
+rename_exts = [".name", ".title"]
+
+# Set author extentions
+#author_exts = [".author"]
+
+valid_exts = ignored_file_exts + page_exts + rename_exts #+ author_exts
+ignored_file_exts += rename_exts
+
+# Get files in main input directory
+input_dir_files = [str(p) for p in Path(input_dir).glob("*") if os.path.isfile(p)]
+
 # Set PDF title
+title_files = [p for p in input_dir_files if path_to_ext(p) in rename_exts]
 #TODO: Look in main dir for .name/.title/.rename
+if len(title_files) > 1:
+    raise argparse.ArgumentTypeError("Multiple title/name files found in the main directory! Please use at most 1.")
+use_pdf_title = True
 if args["title"] != None:
+    if len(title_files) > 0:
+        print("[WARNING]: A title/name file exists in the main directory, but the --title argument overrides this.")
     pdf_title = args["title"]
+elif len(title_files) > 0:
+    pdf_title = read_string_from_file(title_files[0])
 else:
     pdf_title = input_dir_name
+    use_pdf_title = False
 
 # Set PDF author
 #TODO: Look in main dir for .author
@@ -149,11 +204,6 @@ if args["author"] != None:
     pdf_author = args["author"].strip()
 else:
     pdf_author = ""
-
-# Make any string into a valid filename
-def get_valid_filename(s):
-    s = str(s).strip()
-    return re.sub(r'(?u)[^-\w.\ ,\!\'\&]', '_', s)
 
 # Resolve output filename
 if not args["table_of_contents"]:
@@ -185,7 +235,7 @@ if args["table_of_contents"] and args["purify"] != None:
 print()
 print("-------- PDF SETTINGS --------")
 pdf_no_title_string = "PDF will have no title."
-if args["title"] != None:
+if use_pdf_title:
     if len(pdf_title) <= 0:
         print(pdf_no_title_string)
     else:
@@ -233,18 +283,6 @@ print("-------- DIRECTORY SCANNING --------")
 # Walk though folder structure (recursive alphabetical, include all files/folders)
 input_dir_list = [str(p) for p in sorted(Path(input_dir).glob('**/*'))]
 
-# Set file extentions to ignore
-ignored_file_exts = [".ignore", ".db"]
-
-# Set valid image extentions
-page_exts = [".jpg", ".jpeg", ".png", ".gif"]
-
-# Set rename extentions
-rename_exts = [".rename", ".name", ".title"]
-
-valid_exts = ignored_file_exts + page_exts + rename_exts
-ignored_file_exts += rename_exts
-
 # Prefix to prepend to temporary file/folder names
 temp_name_prepend = "__temp__"
 
@@ -265,12 +303,7 @@ page_dir_rename_dict = dict()
 for p in input_dir_list:
     if os.path.isfile(p):
         # Check if it's an invalid extention, and if so, fully ignore it
-        p_path, p_filename = os.path.split(p)
-        p_basename, p_ext = os.path.splitext(p_filename)
-        p_ext = p_ext.lower()
-        if p_ext == "":
-            # No name, just extention
-            p_ext = p_basename
+        p_ext = path_to_ext(p)
         
         if p_ext not in valid_exts:
             print("[UNSUPPORTED]: {}".format(p))
@@ -328,12 +361,8 @@ for p in input_dir_list:
                         rename_dir = os.path.join(final_input_dir, relative_x_path)
                     else:
                         rename_dir = x_path
-                    
-                    # Parse .rename files
-                    with open(x, 'r', encoding='utf-8') as f:
-                        rename_file_contents = f.read()
-                    
-                    rename_name = rename_file_contents.strip().split("\n")[0].strip()
+
+                    rename_name = read_string_from_file(x)
                     
                     page_dir_rename_dict[rename_dir] = rename_name
         
@@ -603,11 +632,15 @@ if not args["table_of_contents"]:
     print("-------- SAVE PDF --------")
     print("Saving bookmarked PDF: {}".format(output_file))
     
+    # Create PDF metadata
+    pdf_metadata_dict = dict()
+    if use_pdf_title:
+        pdf_metadata_dict['/Title'] = pdf_title
+    
+    pdf_metadata_dict['/Author'] = pdf_author
+    
     # Add metadata to PDF
-    output_pdf.addMetadata({
-        '/Title': pdf_title,
-        '/Author': pdf_author
-        })
+    output_pdf.addMetadata(pdf_metadata_dict)
     
     # Save final PDF
     with open(output_file, 'wb') as f:
