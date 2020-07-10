@@ -40,7 +40,7 @@ ap.add_argument("-c", "--table_of_contents", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=str, 
     help="purify scanned B&W page ( greyscale, sharpen, threshold ), named sub-arguments: (sharpen|s) (threshold|t)")
-ap.add_argument("-d", "--dpi", type=int, default=300,
+ap.add_argument("-d", "--dpi", type=int, default=None,
     help="dots-per-inch of the input images")
 ap.add_argument("-t", "--title", type=str, default=None,
     help="the PDF title ( defaults to the directory basename )")
@@ -178,12 +178,22 @@ valid_exts = ignored_file_exts + page_exts + metadata_file_exts
 input_dir_files = [str(p) for p in Path(input_dir).glob("*") if os.path.isfile(p)]
 
 # Set/limit DPI
-#TODO: Look in main dir for .dpi
+dpi_files = [p for p in input_dir_files if path_to_ext(p) in dpi_exts]
+if len(dpi_files) > 1:
+    raise argparse.ArgumentTypeError("Multiple DPI files found in the main directory! Please use at most 1.")
 if args["dpi"] != None:
-    if (args["dpi"] < 72) or (args["dpi"] > 4800):
-        raise argparse.ArgumentTypeError("DPI must be 72 <= DPI <= 4800.")
-    else:
-        pdf_dpi = args["dpi"]
+    pdf_dpi = args["dpi"]
+    if len(dpi_files) > 0:
+        print("[WARNING]: A DPI file exists in the main directory, but the --dpi argument overrides this.")
+elif len(dpi_files) > 0:
+    try:
+        pdf_dpi = int(read_string_from_file(dpi_files[0]))
+    except ValueError:
+        argparse.ArgumentTypeError("DPI setting from DPI file must be a valid integer.")
+else:
+    pdf_dpi = int(300)
+if (pdf_dpi < 72) or (pdf_dpi > 4800):
+    raise argparse.ArgumentTypeError("DPI must be 72 <= DPI <= 4800. Current setting: '{}'".format(pdf_dpi))
 
 # Set PDF title
 title_files = [p for p in input_dir_files if path_to_ext(p) in rename_exts]
