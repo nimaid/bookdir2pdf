@@ -35,7 +35,7 @@ optional arguments:
 
 The PDF here was made using:
 
-`bookdir2pdf.py --input_dir test_dir/ --order_number_separator . --purify sharpen=1 --title "Example PDF" --dpi 72`
+`bookdir2pdf.py --input_dir test_dir/ --order_number_separator . --purify sharpen=1`
 
 The `.` is what seperates the ordering numbers from the bookmark name in the directory name. For example, the directory name `01. The First Part` has a `.` between the ordering number `01` and the bookmark name `The First Part`.
 
