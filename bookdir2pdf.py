@@ -330,7 +330,7 @@ for p in input_dir_list:
                         rename_dir = x_path
                     
                     # Parse .rename files
-                    with open(x) as f:
+                    with open(x, 'r', encoding='utf-8') as f:
                         rename_file_contents = f.read()
                     
                     rename_name = rename_file_contents.strip().split("\n")[0].strip()
