@@ -64,14 +64,6 @@ input_dir_name = input_dir.strip(os.path.sep).split(os.path.sep)[-1]
 # Get main directory
 main_dir = os.path.sep.join(input_dir.rstrip(os.path.sep).split(os.path.sep)[:-1])
 
-# Limit DPI
-#TODO: Look in main dir for .dpi
-if args["dpi"] != None:
-    if (args["dpi"] < 72) or (args["dpi"] > 4800):
-        raise argparse.ArgumentTypeError("DPI must be 72 <= DPI <= 4800.")
-    else:
-        pdf_dpi = args["dpi"]
-
 # Test if/which purify flavor is being used
 if args["purify"] != None:
     purify = True
@@ -177,13 +169,21 @@ rename_exts = [".name", ".title"]
 author_exts = [".author"]
 
 # Set DPI extentions
-#TODO
+dpi_exts = [".dpi"]
 
-valid_exts = ignored_file_exts + page_exts + rename_exts + author_exts
-metadata_file_exts = rename_exts + author_exts
+metadata_file_exts = rename_exts + author_exts + dpi_exts
+valid_exts = ignored_file_exts + page_exts + metadata_file_exts
 
 # Get files in main input directory
 input_dir_files = [str(p) for p in Path(input_dir).glob("*") if os.path.isfile(p)]
+
+# Set/limit DPI
+#TODO: Look in main dir for .dpi
+if args["dpi"] != None:
+    if (args["dpi"] < 72) or (args["dpi"] > 4800):
+        raise argparse.ArgumentTypeError("DPI must be 72 <= DPI <= 4800.")
+    else:
+        pdf_dpi = args["dpi"]
 
 # Set PDF title
 title_files = [p for p in input_dir_files if path_to_ext(p) in rename_exts]
