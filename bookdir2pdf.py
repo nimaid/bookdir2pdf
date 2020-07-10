@@ -48,7 +48,7 @@ ap.add_argument("-a", "--author", type=str, default=None,
     help="the PDF author ( defaults to '{}', pass '' for no author )".format(PROG_FILE_NAME))
 args = vars(ap.parse_args())
 
-
+print()
 
 # Resolve input dir into absolute path (relative to working directory!)
 input_dir = args["input_dir"]
@@ -174,17 +174,19 @@ page_exts = [".jpg", ".jpeg", ".png", ".gif"]
 rename_exts = [".name", ".title"]
 
 # Set author extentions
-#author_exts = [".author"]
+author_exts = [".author"]
 
-valid_exts = ignored_file_exts + page_exts + rename_exts #+ author_exts
-ignored_file_exts += rename_exts
+# Set DPI extentions
+#TODO
+
+valid_exts = ignored_file_exts + page_exts + rename_exts + author_exts
+metadata_file_exts = rename_exts + author_exts
 
 # Get files in main input directory
 input_dir_files = [str(p) for p in Path(input_dir).glob("*") if os.path.isfile(p)]
 
 # Set PDF title
 title_files = [p for p in input_dir_files if path_to_ext(p) in rename_exts]
-#TODO: Look in main dir for .name/.title/.rename
 if len(title_files) > 1:
     raise argparse.ArgumentTypeError("Multiple title/name files found in the main directory! Please use at most 1.")
 use_pdf_title = True
@@ -199,9 +201,15 @@ else:
     use_pdf_title = False
 
 # Set PDF author
-#TODO: Look in main dir for .author
+author_files = [p for p in input_dir_files if path_to_ext(p) in author_exts]
+if len(author_files) > 1:
+    raise argparse.ArgumentTypeError("Multiple author files found in the main directory! Please use at most 1.")
 if args["author"] != None:
+    if len(author_files) > 0:
+        print("[WARNING]: An author file exists in the main directory, but the --author argument overrides this.")
     pdf_author = args["author"].strip()
+elif len(author_files) > 0:
+    pdf_author = read_string_from_file(author_files[0])
 else:
     pdf_author = ""
 
@@ -228,7 +236,6 @@ if not args["table_of_contents"]:
 
 # Print main program warnings
 if args["table_of_contents"] and args["purify"] != None:
-    print()
     print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-c) arguments were passed, will not purify images.")
 
 # Print settings
@@ -243,14 +250,10 @@ if use_pdf_title:
 else:
     print(pdf_no_title_string)
 
-pdf_no_author_string = "PDF will have no author."
-if args["author"] != None:
-    if len(pdf_author) <= 0:
-        print(pdf_no_author_string)
-    else:
-        print("PDF author: {}".format(pdf_author))
+if len(pdf_author) <= 0:
+    print("PDF will have no author.")
 else:
-    print(pdf_no_author_string)
+    print("PDF author: {}".format(pdf_author))
 
 if not args["table_of_contents"]:
     print("PDF resolution: {} DPI".format(pdf_dpi))
@@ -309,11 +312,13 @@ for p in input_dir_list:
             print("[UNSUPPORTED]: {}".format(p))
             continue
         
+        # Test if it's a metadata file, and if so, fully ignore
+        if p_ext in metadata_file_exts:
+            continue
+        
         # Test if it should be ignored, and if so, fully ignore it
         if p_ext in ignored_file_exts:
-            if p_ext not in rename_exts:
-                # Don't print if it's a rename file (not really ignoring per-se)
-                print("[IGNORING]: {}".format(p))
+            print("[IGNORING]: {}".format(p))
             continue
         
         # Test if the path length is nearing the Windows limit
