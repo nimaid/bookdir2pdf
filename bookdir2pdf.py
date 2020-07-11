@@ -28,7 +28,7 @@ def dir_path(string):
     else:
         raise NotADirectoryError(string)
 
-# TODO: Add usage examples
+#TODO: Add usage examples
 ap = argparse.ArgumentParser(description="Merge nested image directory into PDF with nested bookmarks.")
 ap.add_argument("-i", "--input_dir", type=dir_path, required=True,
     help="path to nested image directory to merge")
@@ -524,18 +524,18 @@ else:
     # Save ToC lines to list
     #TODO: refactor ToC generation
     #TODO: Save ToC to file option
-    toc_lines = [toc_title]
+    toc_dict_list = list()
 
     # Add nested bookmarks from page_dict
-    ident = ""
     ident_str = "--- "
+    ident_level = 0
     pagenum_pre = "Page #"
     pagenum_space = 6
     last_page_index = -1 # Because we want the next page to be 0
     path_list = list()
     bookmark_list = list()
     def iterdict(d, base_path="", empty_parents_in=list()):
-        global ident
+        global ident_level
         global path_list
         global last_page_index
 
@@ -591,11 +591,18 @@ else:
                 # Prevent referencing non-existent pages
                 page_ref = min(page_ref, num_pages - 1)
                 
+                # Save to toc_dict_list
+                toc_dict_list.append({
+                    "name": bm_name,
+                    "level": ident_level,
+                    "page": page_ref + 1
+                    })
                 
                 # Print row of ToC
                 page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
+                ident = "".join([ident_str for x in range(ident_level)])
                 print(page_toc_prefix + ident + bm_name)
-                ident += ident_str
+                ident_level += 1
                 
                 if not args["table_of_contents"]:
                     # Add bookmark w/ parent, save as potential parent
@@ -613,7 +620,7 @@ else:
                     temp = bookmark_list.pop()
                 temp = path_list.pop()
                 
-                ident = ident[:-len(ident_str)]
+                ident_level -= 1
             else:
                 # Either it's a file or an empty (placeholder) dir
                 if os.path.isdir(filename):
@@ -634,6 +641,7 @@ else:
                     
                     # Print row of ToC
                     page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
+                    ident = "".join([ident_str for x in range(ident_level)])
                     print(page_toc_prefix + ident + bm_name)
                     
                     if not args["table_of_contents"]:
