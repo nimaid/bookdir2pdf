@@ -566,6 +566,8 @@ else:
             
             page_ref = last_page_index + 1
             
+            ident = "".join([ident_str for x in range(ident_level)])
+            
             # Test if it's a file or a directory
             if len(v) > 0:
                 # It's a not-fully-empty dir (pages/folders)
@@ -600,7 +602,6 @@ else:
                 
                 # Print row of ToC
                 page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
-                ident = "".join([ident_str for x in range(ident_level)])
                 print(page_toc_prefix + ident + bm_name)
                 ident_level += 1
                 
@@ -641,7 +642,6 @@ else:
                     
                     # Print row of ToC
                     page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
-                    ident = "".join([ident_str for x in range(ident_level)])
                     print(page_toc_prefix + ident + bm_name)
                     
                     if not args["table_of_contents"]:
