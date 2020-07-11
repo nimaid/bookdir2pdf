@@ -493,13 +493,8 @@ if not args["table_of_contents"]:
     input_pdf = PdfFileReader(input_pdf_file)
     output_pdf.appendPagesFromReader(input_pdf)
     print("\tDone!")
+    
 
-
-print()
-if not args["table_of_contents"]:
-    print("-------- BOOKMARK CREATION --------")
-    print("Table of Contents will be printed as bookmarks are created.")
-    print()
 
 # Get ToC title
 toc_title = pdf_title
@@ -507,135 +502,150 @@ if len(pdf_author) > 0:
     toc_title += " by " + pdf_author
 toc_title += " - Table of Contents"
 
-# Print ToC header
-print(toc_title)
-print(''.join(['-' for x in range(len(toc_title))]))
+toc_header = toc_title + '\n' + ''.join(['-' for x in range(len(toc_title))])
 
-# Save ToC lines to list
-#TODO: refactor ToC generation
-#TODO: Save ToC to file option
-toc_lines = [toc_title]
+print()
+if len([p for p in page_dict.values() if p != OrderedDict()]) <= 0:
+    if not args["table_of_contents"]:
+        print("-------- BOOKMARK CREATION --------")
+        print("[WARNING]: No subdirectories found, not creating bookmarks.")
+    else:
+        print(toc_header)
+        print("[ERROR]: No subdirectories found, no table of contents to generate.")
+else:
+    if not args["table_of_contents"]:
+        print("-------- BOOKMARK CREATION --------")
+        print("Table of Contents will be printed as bookmarks are created.")
+        print()
 
-# Add nested bookmarks from page_dict
-ident = ""
-ident_str = "--- "
-pagenum_pre = "Page #"
-pagenum_space = 6
-last_page_index = -1 # Because we want the next page to be 0
-path_list = list()
-bookmark_list = list()
-def iterdict(d, base_path="", empty_parents_in=list()):
-    global ident
-    global path_list
-    global last_page_index
+    # Print ToC header
+    print(toc_header)
 
-    for k, v in d.items():
-        filepath = os.path.join(base_path, os.path.sep.join(path_list))
-        filename = os.path.join(filepath, k)
-        filename = os.path.realpath(filename)
-        
-        # Get parent bookmark
-        if len(bookmark_list) > 0:
-            bm_parent = bookmark_list[-1]
-        else:
-            bm_parent = None
-        
-        # Get bookmark name
-        if filename in page_dir_rename_dict:
-            # Name is defined in a rename file
-            bm_name = page_dir_rename_dict[filename]
-        elif args["order_number_separator"] != None:
-            # Remove leading order numbers from dir name
-            k_split = k.split(args["order_number_separator"])
-            if len(k_split) <= 1:
-                bm_name = k
+    # Save ToC lines to list
+    #TODO: refactor ToC generation
+    #TODO: Save ToC to file option
+    toc_lines = [toc_title]
+
+    # Add nested bookmarks from page_dict
+    ident = ""
+    ident_str = "--- "
+    pagenum_pre = "Page #"
+    pagenum_space = 6
+    last_page_index = -1 # Because we want the next page to be 0
+    path_list = list()
+    bookmark_list = list()
+    def iterdict(d, base_path="", empty_parents_in=list()):
+        global ident
+        global path_list
+        global last_page_index
+
+        for k, v in d.items():
+            filepath = os.path.join(base_path, os.path.sep.join(path_list))
+            filename = os.path.join(filepath, k)
+            filename = os.path.realpath(filename)
+            
+            # Get parent bookmark
+            if len(bookmark_list) > 0:
+                bm_parent = bookmark_list[-1]
             else:
-                bm_name = args["order_number_separator"].join(k_split[1:]).strip(" ")
-        else:
-            bm_name = k
-        
-        page_ref = last_page_index + 1
-        
-        # Test if it's a file or a directory
-        if len(v) > 0:
-            # It's a not-fully-empty dir (pages/folders)
+                bm_parent = None
             
-            # Get recursive list of files and folders
-            v_list = [str(x) for x in Path(filename).glob('**/*')]
-            v_dir_list = [x for x in v_list if os.path.isdir(x)]
-            v_file_list = [x for x in v_list if os.path.isfile(x) and os.path.splitext(x)[-1] in page_exts]
+            # Get bookmark name
+            if filename in page_dir_rename_dict:
+                # Name is defined in a rename file
+                bm_name = page_dir_rename_dict[filename]
+            elif args["order_number_separator"] != None:
+                # Remove leading order numbers from dir name
+                k_split = k.split(args["order_number_separator"])
+                if len(k_split) <= 1:
+                    bm_name = k
+                else:
+                    bm_name = args["order_number_separator"].join(k_split[1:]).strip(" ")
+            else:
+                bm_name = k
             
-            # Deal with recursively empty folders
-            empty_parents = list()
-            if len(v_file_list) <= 0:
-                # Test if is not a subdir of an empty_parent
-                is_subdir_of_empty_parent = False
-                for empty_parent in empty_parents:
-                    if os.path.commonpath([filename, empty_parent]) == empty_parent:
-                        is_subdir_of_empty_parent = True
-                if not is_subdir_of_empty_parent:
-                    # This is the main parent
-                    page_ref += 1
-                    empty_parents.append(filename)
+            page_ref = last_page_index + 1
             
-            # Prevent referencing non-existent pages
-            page_ref = min(page_ref, num_pages - 1)
-            
-            
-            # Print row of ToC
-            page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
-            print(page_toc_prefix + ident + bm_name)
-            ident += ident_str
-            
-            if not args["table_of_contents"]:
-                # Add bookmark w/ parent, save as potential parent
-                bm = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+            # Test if it's a file or a directory
+            if len(v) > 0:
+                # It's a not-fully-empty dir (pages/folders)
                 
-                # Add to bookmarks list
-                bookmark_list.append(bm)
-            
-            path_list.append(k)
-            
-            # Do recursion
-            iterdict(v, base_path=base_path, empty_parents_in=empty_parents)
-            
-            if not args["table_of_contents"]:
-                temp = bookmark_list.pop()
-            temp = path_list.pop()
-            
-            ident = ident[:-len(ident_str)]
-        else:
-            # Either it's a file or an empty (placeholder) dir
-            if os.path.isdir(filename):
-                # It's a totally empty directory, make an "empty" bookmark (no pages/children, references next page)
+                # Get recursive list of files and folders
+                v_list = [str(x) for x in Path(filename).glob('**/*')]
+                v_dir_list = [x for x in v_list if os.path.isdir(x)]
+                v_file_list = [x for x in v_list if os.path.isfile(x) and os.path.splitext(x)[-1] in page_exts]
                 
-                # Deal with children of empty parents
-                empty_parents = empty_parents_in
-                is_subdir_of_empty_parent = False
-                for empty_parent in empty_parents:
-                    if os.path.commonpath([filename, empty_parent]) == empty_parent:
-                        is_subdir_of_empty_parent = True
-                if is_subdir_of_empty_parent:
-                    # Adjust page number forward
-                    page_ref += 1
+                # Deal with recursively empty folders
+                empty_parents = list()
+                if len(v_file_list) <= 0:
+                    # Test if is not a subdir of an empty_parent
+                    is_subdir_of_empty_parent = False
+                    for empty_parent in empty_parents:
+                        if os.path.commonpath([filename, empty_parent]) == empty_parent:
+                            is_subdir_of_empty_parent = True
+                    if not is_subdir_of_empty_parent:
+                        # This is the main parent
+                        page_ref += 1
+                        empty_parents.append(filename)
                 
                 # Prevent referencing non-existent pages
                 page_ref = min(page_ref, num_pages - 1)
                 
+                
                 # Print row of ToC
                 page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
                 print(page_toc_prefix + ident + bm_name)
+                ident += ident_str
                 
                 if not args["table_of_contents"]:
-                    # Add bookmark w/ parent, abandon as potential parent
-                    temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                    # Add bookmark w/ parent, save as potential parent
+                    bm = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                    
+                    # Add to bookmarks list
+                    bookmark_list.append(bm)
+                
+                path_list.append(k)
+                
+                # Do recursion
+                iterdict(v, base_path=base_path, empty_parents_in=empty_parents)
+                
+                if not args["table_of_contents"]:
+                    temp = bookmark_list.pop()
+                temp = path_list.pop()
+                
+                ident = ident[:-len(ident_str)]
             else:
-                # It's a file
-                page_index = page_list_files.index(filename)
-                last_page_index = page_index
-iterdict(page_dict, base_path=final_input_dir)
+                # Either it's a file or an empty (placeholder) dir
+                if os.path.isdir(filename):
+                    # It's a totally empty directory, make an "empty" bookmark (no pages/children, references next page)
+                    
+                    # Deal with children of empty parents
+                    empty_parents = empty_parents_in
+                    is_subdir_of_empty_parent = False
+                    for empty_parent in empty_parents:
+                        if os.path.commonpath([filename, empty_parent]) == empty_parent:
+                            is_subdir_of_empty_parent = True
+                    if is_subdir_of_empty_parent:
+                        # Adjust page number forward
+                        page_ref += 1
+                    
+                    # Prevent referencing non-existent pages
+                    page_ref = min(page_ref, num_pages - 1)
+                    
+                    # Print row of ToC
+                    page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
+                    print(page_toc_prefix + ident + bm_name)
+                    
+                    if not args["table_of_contents"]:
+                        # Add bookmark w/ parent, abandon as potential parent
+                        temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                else:
+                    # It's a file
+                    page_index = page_list_files.index(filename)
+                    last_page_index = page_index
+    iterdict(page_dict, base_path=final_input_dir)
 
-print("\tPage count: {}".format(num_pages))
+    print("\tPage count: {}".format(num_pages))
 
 if not args["table_of_contents"]:
     print()
