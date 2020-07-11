@@ -478,7 +478,6 @@ if not args["table_of_contents"]:
     print("-------- PDF CREATION --------")
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     print("Creating PDF document from image files...")
-    #TODO: DPI not working for Electronotes?
     temp_pdf_file_binary = img2pdf.convert(page_list_files, dpi=pdf_dpi, x=None, y=None)
     print("\tDone!")
     
