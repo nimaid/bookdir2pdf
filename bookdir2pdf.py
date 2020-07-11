@@ -45,7 +45,7 @@ ap.add_argument("-d", "--dpi", type=int, default=None,
 ap.add_argument("-t", "--title", type=str, default=None,
     help="the PDF title ( defaults to the directory basename )")
 ap.add_argument("-a", "--author", type=str, default=None,
-    help="the PDF author ( defaults to '{}', pass '' for no author )".format(PROG_FILE_NAME))
+    help="the PDF author")
 args = vars(ap.parse_args())
 
 print()
@@ -446,7 +446,7 @@ if purify:
                     final_page_im = page_im
             
             # Save image
-            final_page_im.save(final_p, "PNG")
+            final_page_im.save(final_p, "PNG", dpi=(pdf_dpi, pdf_dpi))
 
     # Update page_list with new images/paths
     page_list = new_page_list
@@ -479,7 +479,7 @@ if not args["table_of_contents"]:
     temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
     print("Creating PDF document from image files...")
     #TODO: DPI not working for Electronotes?
-    temp_pdf_file_binary = img2pdf.convert(page_list_files, dpi=pdf_dpi)
+    temp_pdf_file_binary = img2pdf.convert(page_list_files, dpi=pdf_dpi, x=None, y=None)
     print("\tDone!")
     
     print("Saving temporary PDF: {}".format(temp_pdf))
@@ -649,6 +649,8 @@ if not args["table_of_contents"]:
         pdf_metadata_dict['/Title'] = pdf_title
     
     pdf_metadata_dict['/Author'] = pdf_author
+    
+    pdf_metadata_dict['/Producer'] = PROG_FILE_NAME
     
     # Add metadata to PDF
     output_pdf.addMetadata(pdf_metadata_dict)
