@@ -29,8 +29,7 @@ optional arguments:
   -t TITLE, --title TITLE
                         the PDF title ( defaults to the directory basename )
   -a AUTHOR, --author AUTHOR
-                        the PDF author ( defaults to 'bookdir2pdf', pass ''
-                        for no author )
+                        the PDF author
 ```
 
 The PDF here was made using:
