@@ -3,6 +3,7 @@
 import argparse, os, sys
 from pathlib import Path
 import re
+import atexit
 
 # Test if this is a PyInstaller executable or a .py file
 if getattr(sys, 'frozen', False):
@@ -20,6 +21,20 @@ PROG_FILE_NAME = os.path.splitext(os.path.basename(PROG_FILE))[0]
 
 # Get path that the command was called from
 COMMAND_PATH = Path().absolute()
+
+# Setup exit handler (used for cleanup)
+job_complete = None
+exit_funcs = list()
+def exit_handler():
+    global job_complete
+    if len(exit_funcs) > 0:
+        print()
+        print("-------- EXIT TASKS --------")
+        for f in exit_funcs:
+            f()
+    if job_complete != None: # defined at the very end only
+        job_complete()
+atexit.register(exit_handler)
 
 # Parse arguments before running main program
 def dir_path(string):
@@ -282,419 +297,429 @@ if purify:
     print("\tThreshold: {}.".format(thresh_setting))
 
 
+# We will be catching KeyboardInterrupts
+try:
+    # Do main imports
+    import img2pdf
+    from PIL import Image, ImageEnhance
+    from collections import OrderedDict
+    from PyPDF2 import PdfFileWriter, PdfFileReader
+    import shutil
 
-# Do main imports
-import img2pdf
-from PIL import Image, ImageEnhance
-from collections import OrderedDict
-from PyPDF2 import PdfFileWriter, PdfFileReader
-import shutil
-
-print()
-print("-------- DIRECTORY SCANNING --------")
-
-# Walk though folder structure (recursive alphabetical, include all files/folders)
-input_dir_list = [str(p) for p in sorted(Path(input_dir).glob('**/*'))]
-
-# Prefix to prepend to temporary file/folder names
-temp_name_prepend = "__temp__"
-
-# Make final input dir names
-if purify:
-    # Make temp directory name
-    final_input_dir_name = temp_name_prepend + input_dir_name
-    final_input_dir = os.path.join(main_dir, final_input_dir_name)
-else:
-    # The original directories
-    final_input_dir = input_dir
-    final_input_dir_name = input_dir_name  
-
-# Save image paths (and empty/ignored-file dirs) paths to ordered list
-page_list = list()
-# Make dict with rename (dir, bm_name)
-page_dir_rename_dict = dict()
-for p in input_dir_list:
-    if os.path.isfile(p):
-        # Check if it's an invalid extention, and if so, fully ignore it
-        p_ext = path_to_ext(p)
-        
-        if p_ext not in valid_exts:
-            print("[UNSUPPORTED]: {}".format(p))
-            continue
-        
-        # Test if it's a metadata file, and if so, fully ignore
-        if p_ext in metadata_file_exts:
-            continue
-        
-        # Test if it should be ignored, and if so, fully ignore it
-        if p_ext in ignored_file_exts:
-            print("[IGNORING]: {}".format(p))
-            continue
-        
-        # Test if the path length is nearing the Windows limit
-        windows_path_limit = 260
-        unix_path_limit = 4096
-        wiggle_room = 40
-        p_path_length = len(p)
-        min_path_length = min(windows_path_limit, unix_path_limit)
-        if p_path_length > min_path_length - wiggle_room:
-            print("[WARNING] Dangerously long pathname: {}".format(p))
-            print("\tPath length: {} characters".format(p_path_length))
-            print("\tWindows maximum path length: {} characters".format(windows_path_limit))
-            print("\tUnix maximum path length: {} characters".format(unix_path_limit))
-            print("\tRenaming, moving, or downloading this folder may cause errors unless you shorten the names of the file/folders.")
-            print("\Recommended action: Use '.name' files (instead of the folder names) to define bookmark names.")
-            
-        page_list.append(p)
-    elif os.path.isdir(p):
-        # Get files and directories inside p
-        p_list = [os.path.realpath(str(x)) for x in sorted(Path(p).glob('*'))]
-        p_dir_list = [x for x in p_list if os.path.isdir(x)]
-        p_file_list = [x for x in p_list if os.path.isfile(x)]
-        
-        # Make file list without ignored files
-        p_file_list_ignored = list()
-        # Also update page_dir_rename_dict
-        for x in p_file_list:
-            x_path, x_filename = os.path.split(x)
-            x_ext = path_to_ext(x)
-
-            # Check if it's a valid extention
-            if x_ext in valid_exts:
-                # If not ignored file, append to file list
-                if x_ext not in ignored_file_exts + metadata_file_exts:
-                    p_file_list_ignored.append(x)
-                # If it's a rename file, parse and append to rename dict
-                if x_ext in rename_exts:
-                    # If purify, make sure it's referencing the final input dir
-                    if purify:
-                        relative_x_path = os.path.relpath(x_path, input_dir)
-                        rename_dir = os.path.join(final_input_dir, relative_x_path)
-                    else:
-                        rename_dir = x_path
-
-                    rename_name = read_string_from_file(x)
-                    
-                    page_dir_rename_dict[rename_dir] = rename_name
-        
-        # Test if it's empty or contains only ignored files
-        if len(p_dir_list) <= 0 and len(p_file_list_ignored) <= 0:
-            # Add path (used to make "empty" bookmarks)
-            page_list.append(p)
-print("\tDone scanning directory!")
-
-# Get number of pages
-num_pages = len([p for p in page_list if os.path.isfile(p)])
-print("\tPage count: {}".format(num_pages))
-
-# Run purification (save to temporary directory)
-if purify:
     print()
-    print("-------- PURIFICATION --------")
-    print("Saving purified images to temporary directory: {}".format(final_input_dir))
-    
-    # Delete temp dir (or file with same name) if it already exists
-    if os.path.exists(final_input_dir):
-        if os.path.isdir(final_input_dir):
-            shutil.rmtree(final_input_dir)
-        elif os.path.isfile(final_input_dir):
-            os.remove(final_input_dir)
-    
-    # Create new page_list
-    new_page_list = list()
-    new_page_list_dirs = list()
-    new_page_list_files = list()
-    for p in page_list:
-        # Make final_p (replace input_dir with final_input_dir)
-        rel_p = os.path.relpath(p, input_dir)
-        final_p = os.path.join(final_input_dir, rel_p)
-        new_page_list.append(final_p)
-        if os.path.isdir(p):
-            new_page_list_dirs.append(final_p)
-        else:
-            new_page_list_files.append(final_p)
-    
-    # Make all directories first
-    for p in new_page_list_dirs:
-        Path(p).mkdir(parents=True, exist_ok=True)
-    for p in new_page_list_files:
-        Path(os.path.dirname(p)).mkdir(parents=True, exist_ok=True)
-    
-    # Process image files
-    curr_page = 0 # Will go to 1 before first print
-    for x, p in enumerate(page_list):
-        final_p = new_page_list[x]
-        if os.path.isfile(p):
-            # It's an image file
-            curr_page += 1
-            with Image.open(p) as page_im:
-                if purify:
-                    print("[PURIFY] ({}/{}): {}".format(curr_page, num_pages, p))
-                    # Make greyscale
-                    gray = page_im.convert('L')
-                    
-                    # Sharpen 
-                    enhancer = ImageEnhance.Sharpness(gray)
-                    sharpen = enhancer.enhance(sharpen_factor)
-                    
-                    # Apply threshold
-                    thresh = sharpen.point(lambda p: p > thresh_setting and 255)  
-                    
-                    # Make 1 bit
-                    final_page_im = thresh.convert('1')
-                else:
-                    final_page_im = page_im
-            
-            # Save image
-            final_page_im.save(final_p, "PNG", dpi=(pdf_dpi, pdf_dpi))
+    print("-------- DIRECTORY SCANNING --------")
 
-    # Update page_list with new images/paths
-    page_list = new_page_list
-    
-    print("\tDone purifying images!")
+    # Walk though folder structure (recursive alphabetical, include all files/folders)
+    input_dir_list = [str(p) for p in sorted(Path(input_dir).glob('**/*'))]
 
-# Make page_list but with only files
-page_list_files = [p for p in page_list if os.path.isfile(p)]
+    # Prefix to prepend to temporary file/folder names
+    temp_name_prepend = "__temp__"
 
-# Get size from first page
-with Image.open(page_list_files[0]) as cover:
-    width, height = cover.size
-
-# Create nested ordered dictionary from list
-page_dict = OrderedDict()
-for p in page_list:
-    p = os.path.relpath(p, final_input_dir) # Make relative
-    current_level = page_dict
-    for part in p.split(os.path.sep):
-        if part not in current_level:
-            current_level[part] = OrderedDict()
-        current_level = current_level[part]
-
-
-
-# Create PDF from page_list(no bookmarks)
-if not args["table_of_contents"]:
-    print()
-    print("-------- PDF CREATION --------")
-    temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
-    print("Creating PDF document from image files...")
-    temp_pdf_file_binary = img2pdf.convert(page_list_files, dpi=pdf_dpi, x=None, y=None)
-    print("\tDone!")
-    
-    print("Saving temporary PDF: {}".format(temp_pdf))
-    with open(temp_pdf, "wb") as f:
-        f.write(temp_pdf_file_binary)
-    print("\tDone!")
-    
-    # Load PDF into PyPDF2
-    print("Loading temporary PDF into editing library...")
-    output_pdf = PdfFileWriter()
-    input_pdf_file = open(temp_pdf, 'rb')
-    input_pdf = PdfFileReader(input_pdf_file)
-    output_pdf.appendPagesFromReader(input_pdf)
-    print("\tDone!")
-    
-
-
-# Get ToC title
-toc_title = pdf_title
-if len(pdf_author) > 0:
-    toc_title += " by " + pdf_author
-toc_title += " - Table of Contents"
-
-toc_header = toc_title + '\n' + ''.join(['-' for x in range(len(toc_title))])
-
-print()
-if len([p for p in page_dict.values() if p != OrderedDict()]) <= 0:
-    if not args["table_of_contents"]:
-        print("-------- BOOKMARK CREATION --------")
-        print("[WARNING]: No subdirectories found, not creating bookmarks.")
+    # Make final input dir names
+    if purify:
+        # Make temp directory name
+        final_input_dir_name = temp_name_prepend + input_dir_name
+        final_input_dir = os.path.join(main_dir, final_input_dir_name)
     else:
-        print(toc_header)
-        print("[ERROR]: No subdirectories found, no table of contents to generate.")
-else:
-    if not args["table_of_contents"]:
-        print("-------- BOOKMARK CREATION --------")
-        print("Table of Contents will be printed as bookmarks are created.")
+        # The original directories
+        final_input_dir = input_dir
+        final_input_dir_name = input_dir_name  
+
+    # Save image paths (and empty/ignored-file dirs) paths to ordered list
+    page_list = list()
+    # Make dict with rename (dir, bm_name)
+    page_dir_rename_dict = dict()
+    for p in input_dir_list:
+        if os.path.isfile(p):
+            # Check if it's an invalid extention, and if so, fully ignore it
+            p_ext = path_to_ext(p)
+            
+            if p_ext not in valid_exts:
+                print("[UNSUPPORTED]: {}".format(p))
+                continue
+            
+            # Test if it's a metadata file, and if so, fully ignore
+            if p_ext in metadata_file_exts:
+                continue
+            
+            # Test if it should be ignored, and if so, fully ignore it
+            if p_ext in ignored_file_exts:
+                print("[IGNORING]: {}".format(p))
+                continue
+            
+            # Test if the path length is nearing the Windows limit
+            windows_path_limit = 260
+            unix_path_limit = 4096
+            wiggle_room = 40
+            p_path_length = len(p)
+            min_path_length = min(windows_path_limit, unix_path_limit)
+            if p_path_length > min_path_length - wiggle_room:
+                print("[WARNING] Dangerously long pathname: {}".format(p))
+                print("\tPath length: {} characters".format(p_path_length))
+                print("\tWindows maximum path length: {} characters".format(windows_path_limit))
+                print("\tUnix maximum path length: {} characters".format(unix_path_limit))
+                print("\tRenaming, moving, or downloading this folder may cause errors unless you shorten the names of the file/folders.")
+                print("\Recommended action: Use '.name' files (instead of the folder names) to define bookmark names.")
+                
+            page_list.append(p)
+        elif os.path.isdir(p):
+            # Get files and directories inside p
+            p_list = [os.path.realpath(str(x)) for x in sorted(Path(p).glob('*'))]
+            p_dir_list = [x for x in p_list if os.path.isdir(x)]
+            p_file_list = [x for x in p_list if os.path.isfile(x)]
+            
+            # Make file list without ignored files
+            p_file_list_ignored = list()
+            # Also update page_dir_rename_dict
+            for x in p_file_list:
+                x_path, x_filename = os.path.split(x)
+                x_ext = path_to_ext(x)
+
+                # Check if it's a valid extention
+                if x_ext in valid_exts:
+                    # If not ignored file, append to file list
+                    if x_ext not in ignored_file_exts + metadata_file_exts:
+                        p_file_list_ignored.append(x)
+                    # If it's a rename file, parse and append to rename dict
+                    if x_ext in rename_exts:
+                        # If purify, make sure it's referencing the final input dir
+                        if purify:
+                            relative_x_path = os.path.relpath(x_path, input_dir)
+                            rename_dir = os.path.join(final_input_dir, relative_x_path)
+                        else:
+                            rename_dir = x_path
+
+                        rename_name = read_string_from_file(x)
+                        
+                        page_dir_rename_dict[rename_dir] = rename_name
+            
+            # Test if it's empty or contains only ignored files
+            if len(p_dir_list) <= 0 and len(p_file_list_ignored) <= 0:
+                # Add path (used to make "empty" bookmarks)
+                page_list.append(p)
+    print("\tDone scanning directory!")
+
+    # Get number of pages
+    num_pages = len([p for p in page_list if os.path.isfile(p)])
+    print("\tPage count: {}".format(num_pages))
+
+    # Run purification (save to temporary directory)
+    if purify:
         print()
-
-    # Print ToC header
-    print(toc_header)
-
-    # Save ToC lines to list
-    #TODO: refactor ToC generation
-    #TODO: Save ToC to file option
-    toc_dict_list = list()
-
-    # Add nested bookmarks from page_dict
-    ident_str = "--- "
-    ident_level = 0
-    pagenum_pre = "Page #"
-    pagenum_space = 6
-    last_page_index = -1 # Because we want the next page to be 0
-    path_list = list()
-    bookmark_list = list()
-    def iterdict(d, base_path="", empty_parents_in=list()):
-        global ident_level
-        global path_list
-        global last_page_index
-
-        for k, v in d.items():
-            filepath = os.path.join(base_path, os.path.sep.join(path_list))
-            filename = os.path.join(filepath, k)
-            filename = os.path.realpath(filename)
-            
-            # Get parent bookmark
-            if len(bookmark_list) > 0:
-                bm_parent = bookmark_list[-1]
+        print("-------- PURIFICATION --------")
+        print("Saving purified images to temporary directory: {}".format(final_input_dir))
+        
+        # Delete temp dir (or file with same name) if it already exists
+        def clean_temp_dir():
+            if os.path.exists(final_input_dir):
+                if os.path.isdir(final_input_dir):
+                    shutil.rmtree(final_input_dir)
+                elif os.path.isfile(final_input_dir):
+                    os.remove(final_input_dir)
+        clean_temp_dir()
+        
+        # Create new page_list
+        new_page_list = list()
+        new_page_list_dirs = list()
+        new_page_list_files = list()
+        for p in page_list:
+            # Make final_p (replace input_dir with final_input_dir)
+            rel_p = os.path.relpath(p, input_dir)
+            final_p = os.path.join(final_input_dir, rel_p)
+            new_page_list.append(final_p)
+            if os.path.isdir(p):
+                new_page_list_dirs.append(final_p)
             else:
-                bm_parent = None
-            
-            # Get bookmark name
-            if filename in page_dir_rename_dict:
-                # Name is defined in a rename file
-                bm_name = page_dir_rename_dict[filename]
-            elif args["order_number_separator"] != None:
-                # Remove leading order numbers from dir name
-                k_split = k.split(args["order_number_separator"])
-                if len(k_split) <= 1:
-                    bm_name = k
+                new_page_list_files.append(final_p)
+        
+        # Make all directories first
+        for p in new_page_list_dirs:
+            Path(p).mkdir(parents=True, exist_ok=True)
+        for p in new_page_list_files:
+            Path(os.path.dirname(p)).mkdir(parents=True, exist_ok=True)
+        
+        # Set up exit function to clean up if exited early
+        def exit_clean_temp_dir():
+            print("[CLEANUP] Delete temporary directory: {}".format(final_input_dir))
+            clean_temp_dir()
+            print("\tDone!")
+        exit_funcs.append(exit_clean_temp_dir)
+        
+        # Process image files
+        curr_page = 0 # Will go to 1 before first print
+        for x, p in enumerate(page_list):
+            final_p = new_page_list[x]
+            if os.path.isfile(p):
+                # It's an image file
+                curr_page += 1
+                with Image.open(p) as page_im:
+                    if purify:
+                        print("[PURIFY] ({}/{}): {}".format(curr_page, num_pages, p))
+                        # Make greyscale
+                        gray = page_im.convert('L')
+                        
+                        # Sharpen 
+                        enhancer = ImageEnhance.Sharpness(gray)
+                        sharpen = enhancer.enhance(sharpen_factor)
+                        
+                        # Apply threshold
+                        thresh = sharpen.point(lambda p: p > thresh_setting and 255)  
+                        
+                        # Make 1 bit
+                        final_page_im = thresh.convert('1')
+                    else:
+                        final_page_im = page_im
+                
+                # Save image
+                final_page_im.save(final_p, "PNG", dpi=(pdf_dpi, pdf_dpi))
+
+        # Update page_list with new images/paths
+        page_list = new_page_list
+        
+        print("\tDone purifying images!")
+
+    # Make page_list but with only files
+    page_list_files = [p for p in page_list if os.path.isfile(p)]
+
+    # Get size from first page
+    with Image.open(page_list_files[0]) as cover:
+        width, height = cover.size
+
+    # Create nested ordered dictionary from list
+    page_dict = OrderedDict()
+    for p in page_list:
+        p = os.path.relpath(p, final_input_dir) # Make relative
+        current_level = page_dict
+        for part in p.split(os.path.sep):
+            if part not in current_level:
+                current_level[part] = OrderedDict()
+            current_level = current_level[part]
+
+
+
+    # Create PDF from page_list(no bookmarks)
+    if not args["table_of_contents"]:
+        print()
+        print("-------- PDF CREATION --------")
+        temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
+        print("Creating PDF document from image files...")
+        temp_pdf_file_binary = img2pdf.convert(page_list_files, dpi=pdf_dpi, x=None, y=None)
+        print("\tDone!")
+        
+        print("Saving temporary PDF: {}".format(temp_pdf))
+        with open(temp_pdf, "wb") as f:
+            f.write(temp_pdf_file_binary)
+        print("\tDone!")
+        
+        # Load PDF into PyPDF2
+        print("Loading temporary PDF into editing library...")
+        output_pdf = PdfFileWriter()
+        input_pdf_file = open(temp_pdf, 'rb')
+        input_pdf = PdfFileReader(input_pdf_file)
+        output_pdf.appendPagesFromReader(input_pdf)
+        print("\tDone!")
+        
+
+
+    # Get ToC title
+    toc_title = pdf_title
+    if len(pdf_author) > 0:
+        toc_title += " by " + pdf_author
+    toc_title += " - Table of Contents"
+
+    toc_header = toc_title + '\n' + ''.join(['-' for x in range(len(toc_title))])
+
+    print()
+    if len([p for p in page_dict.values() if p != OrderedDict()]) <= 0:
+        if not args["table_of_contents"]:
+            print("-------- BOOKMARK CREATION --------")
+            print("[WARNING]: No subdirectories found, not creating bookmarks.")
+        else:
+            print(toc_header)
+            print("[ERROR]: No subdirectories found, no table of contents to generate.")
+    else:
+        if not args["table_of_contents"]:
+            print("-------- BOOKMARK CREATION --------")
+            print("Table of Contents will be printed as bookmarks are created.")
+            print()
+
+        # Print ToC header
+        print(toc_header)
+
+        # Save ToC lines to list
+        #TODO: refactor ToC generation
+        #TODO: Save ToC to file option
+        toc_dict_list = list()
+
+        # Add nested bookmarks from page_dict
+        ident_str = "--- "
+        ident_level = 0
+        pagenum_pre = "Page #"
+        pagenum_space = 6
+        last_page_index = -1 # Because we want the next page to be 0
+        path_list = list()
+        bookmark_list = list()
+        def iterdict(d, base_path="", empty_parents_in=list()):
+            global ident_level
+            global path_list
+            global last_page_index
+
+            for k, v in d.items():
+                filepath = os.path.join(base_path, os.path.sep.join(path_list))
+                filename = os.path.join(filepath, k)
+                filename = os.path.realpath(filename)
+                
+                # Get parent bookmark
+                if len(bookmark_list) > 0:
+                    bm_parent = bookmark_list[-1]
                 else:
-                    bm_name = args["order_number_separator"].join(k_split[1:]).strip(" ")
-            else:
-                bm_name = k
-            
-            page_ref = last_page_index + 1
-            
-            ident = "".join([ident_str for x in range(ident_level)])
-            
-            # Test if it's a file or a directory
-            if len(v) > 0:
-                # It's a not-fully-empty dir (pages/folders)
+                    bm_parent = None
                 
-                # Get recursive list of files and folders
-                v_list = [str(x) for x in Path(filename).glob('**/*')]
-                v_dir_list = [x for x in v_list if os.path.isdir(x)]
-                v_file_list = [x for x in v_list if os.path.isfile(x) and os.path.splitext(x)[-1] in page_exts]
+                # Get bookmark name
+                if filename in page_dir_rename_dict:
+                    # Name is defined in a rename file
+                    bm_name = page_dir_rename_dict[filename]
+                elif args["order_number_separator"] != None:
+                    # Remove leading order numbers from dir name
+                    k_split = k.split(args["order_number_separator"])
+                    if len(k_split) <= 1:
+                        bm_name = k
+                    else:
+                        bm_name = args["order_number_separator"].join(k_split[1:]).strip(" ")
+                else:
+                    bm_name = k
                 
-                # Deal with recursively empty folders
-                empty_parents = list()
-                if len(v_file_list) <= 0:
-                    # Test if is not a subdir of an empty_parent
-                    is_subdir_of_empty_parent = False
-                    for empty_parent in empty_parents:
-                        if os.path.commonpath([filename, empty_parent]) == empty_parent:
-                            is_subdir_of_empty_parent = True
-                    if not is_subdir_of_empty_parent:
-                        # This is the main parent
-                        page_ref += 1
-                        empty_parents.append(filename)
+                page_ref = last_page_index + 1
                 
-                # Prevent referencing non-existent pages
-                page_ref = min(page_ref, num_pages - 1)
+                ident = "".join([ident_str for x in range(ident_level)])
                 
-                # Save to toc_dict_list
-                toc_dict_list.append({
-                    "name": bm_name,
-                    "level": ident_level,
-                    "page": page_ref + 1
-                    })
-                
-                # Print row of ToC
-                page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
-                print(page_toc_prefix + ident + bm_name)
-                ident_level += 1
-                
-                if not args["table_of_contents"]:
-                    # Add bookmark w/ parent, save as potential parent
-                    bm = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                # Test if it's a file or a directory
+                if len(v) > 0:
+                    # It's a not-fully-empty dir (pages/folders)
                     
-                    # Add to bookmarks list
-                    bookmark_list.append(bm)
-                
-                path_list.append(k)
-                
-                # Do recursion
-                iterdict(v, base_path=base_path, empty_parents_in=empty_parents)
-                
-                if not args["table_of_contents"]:
-                    temp = bookmark_list.pop()
-                temp = path_list.pop()
-                
-                ident_level -= 1
-            else:
-                # Either it's a file or an empty (placeholder) dir
-                if os.path.isdir(filename):
-                    # It's a totally empty directory, make an "empty" bookmark (no pages/children, references next page)
+                    # Get recursive list of files and folders
+                    v_list = [str(x) for x in Path(filename).glob('**/*')]
+                    v_dir_list = [x for x in v_list if os.path.isdir(x)]
+                    v_file_list = [x for x in v_list if os.path.isfile(x) and os.path.splitext(x)[-1] in page_exts]
                     
-                    # Deal with children of empty parents
-                    empty_parents = empty_parents_in
-                    is_subdir_of_empty_parent = False
-                    for empty_parent in empty_parents:
-                        if os.path.commonpath([filename, empty_parent]) == empty_parent:
-                            is_subdir_of_empty_parent = True
-                    if is_subdir_of_empty_parent:
-                        # Adjust page number forward
-                        page_ref += 1
+                    # Deal with recursively empty folders
+                    empty_parents = list()
+                    if len(v_file_list) <= 0:
+                        # Test if is not a subdir of an empty_parent
+                        is_subdir_of_empty_parent = False
+                        for empty_parent in empty_parents:
+                            if os.path.commonpath([filename, empty_parent]) == empty_parent:
+                                is_subdir_of_empty_parent = True
+                        if not is_subdir_of_empty_parent:
+                            # This is the main parent
+                            page_ref += 1
+                            empty_parents.append(filename)
                     
                     # Prevent referencing non-existent pages
                     page_ref = min(page_ref, num_pages - 1)
                     
+                    # Save to toc_dict_list
+                    toc_dict_list.append({
+                        "name": bm_name,
+                        "level": ident_level,
+                        "page": page_ref + 1
+                        })
+                    
                     # Print row of ToC
                     page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
                     print(page_toc_prefix + ident + bm_name)
+                    ident_level += 1
                     
                     if not args["table_of_contents"]:
-                        # Add bookmark w/ parent, abandon as potential parent
-                        temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                        # Add bookmark w/ parent, save as potential parent
+                        bm = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                        
+                        # Add to bookmarks list
+                        bookmark_list.append(bm)
+                    
+                    path_list.append(k)
+                    
+                    # Do recursion
+                    iterdict(v, base_path=base_path, empty_parents_in=empty_parents)
+                    
+                    if not args["table_of_contents"]:
+                        temp = bookmark_list.pop()
+                    temp = path_list.pop()
+                    
+                    ident_level -= 1
                 else:
-                    # It's a file
-                    page_index = page_list_files.index(filename)
-                    last_page_index = page_index
-    iterdict(page_dict, base_path=final_input_dir)
+                    # Either it's a file or an empty (placeholder) dir
+                    if os.path.isdir(filename):
+                        # It's a totally empty directory, make an "empty" bookmark (no pages/children, references next page)
+                        
+                        # Deal with children of empty parents
+                        empty_parents = empty_parents_in
+                        is_subdir_of_empty_parent = False
+                        for empty_parent in empty_parents:
+                            if os.path.commonpath([filename, empty_parent]) == empty_parent:
+                                is_subdir_of_empty_parent = True
+                        if is_subdir_of_empty_parent:
+                            # Adjust page number forward
+                            page_ref += 1
+                        
+                        # Prevent referencing non-existent pages
+                        page_ref = min(page_ref, num_pages - 1)
+                        
+                        # Print row of ToC
+                        page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
+                        print(page_toc_prefix + ident + bm_name)
+                        
+                        if not args["table_of_contents"]:
+                            # Add bookmark w/ parent, abandon as potential parent
+                            temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
+                    else:
+                        # It's a file
+                        page_index = page_list_files.index(filename)
+                        last_page_index = page_index
+        iterdict(page_dict, base_path=final_input_dir)
 
-    print("\tPage count: {}".format(num_pages))
+        print("\tPage count: {}".format(num_pages))
 
-if not args["table_of_contents"]:
+    if not args["table_of_contents"]:
+        print()
+        print("-------- SAVE PDF --------")
+        print("Saving bookmarked PDF: {}".format(output_file))
+        
+        # Create PDF metadata
+        pdf_metadata_dict = dict()
+        if use_pdf_title:
+            pdf_metadata_dict['/Title'] = pdf_title
+        
+        pdf_metadata_dict['/Author'] = pdf_author
+        
+        pdf_metadata_dict['/Producer'] = PROG_FILE_NAME
+        
+        # Add metadata to PDF
+        output_pdf.addMetadata(pdf_metadata_dict)
+        
+        # Save final PDF
+        with open(output_file, 'wb') as f:
+            output_pdf.write(f)
+        
+        print("\tDone!")
+        
+        print()
+        print("-------- CLEAN UP --------")
+        
+        # Delete temporary PDF
+        print("Deleting temporary PDF: {}".format(temp_pdf))
+        input_pdf_file.close()
+        os.remove(temp_pdf)
+        print("\tDone!")
+
+    # Set to print after other exit tasks
+    def job_complete():
+        print()
+        print("-------- JOB COMPLETE --------")
+        print("Page count: {}".format(num_pages))
+        if not args["table_of_contents"]:
+            print("Final PDF location: {}".format(output_file))
+            print("File size: {} bytes".format(os.path.getsize(output_file)))
+except KeyboardInterrupt:
     print()
-    print("-------- SAVE PDF --------")
-    print("Saving bookmarked PDF: {}".format(output_file))
-    
-    # Create PDF metadata
-    pdf_metadata_dict = dict()
-    if use_pdf_title:
-        pdf_metadata_dict['/Title'] = pdf_title
-    
-    pdf_metadata_dict['/Author'] = pdf_author
-    
-    pdf_metadata_dict['/Producer'] = PROG_FILE_NAME
-    
-    # Add metadata to PDF
-    output_pdf.addMetadata(pdf_metadata_dict)
-    
-    # Save final PDF
-    with open(output_file, 'wb') as f:
-        output_pdf.write(f)
-    
-    print("\tDone!")
-    
-    print()
-    print("-------- CLEAN UP --------")
-    
-    # Delete temporary PDF
-    print("Deleting temporary PDF: {}".format(temp_pdf))
-    input_pdf_file.close()
-    os.remove(temp_pdf)
-    print("\tDone!")
-
-if purify and (os.path.realpath(final_input_dir) != os.path.realpath(input_dir)):
-    print("Delete temporary directory: {}".format(final_input_dir))
-    shutil.rmtree(final_input_dir)
-    print("\tDone!")
-
-print()
-print("-------- JOB COMPLETE --------")
-print("Page count: {}".format(num_pages))
-if not args["table_of_contents"]:
-    print("Final PDF location: {}".format(output_file))
-    print("File size: {} bytes".format(os.path.getsize(output_file)))
+    print("[CTRL-C] Exiting...")
