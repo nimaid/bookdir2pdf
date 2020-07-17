@@ -29,7 +29,7 @@ def exit_handler():
     global job_complete
     if len(exit_funcs) > 0:
         print()
-        print("-------- EXIT TASKS --------")
+        print("-------- CLEANUP --------")
         for f in exit_funcs:
             f()
     if job_complete != None: # defined at the very end only
@@ -401,6 +401,7 @@ try:
 
     # Get number of pages
     num_pages = len([p for p in page_list if os.path.isfile(p)])
+    num_pages_len = len(str(num_pages))
     print("\tPage count: {}".format(num_pages))
 
     # Run purification (save to temporary directory)
@@ -440,7 +441,7 @@ try:
         
         # Set up exit function to clean up if exited early
         def exit_clean_temp_dir():
-            print("[CLEANUP] Delete temporary directory: {}".format(final_input_dir))
+            print("Delete temporary directory: {}".format(final_input_dir))
             clean_temp_dir()
             print("\tDone!")
         exit_funcs.append(exit_clean_temp_dir)
@@ -454,7 +455,8 @@ try:
                 curr_page += 1
                 with Image.open(p) as page_im:
                     if purify:
-                        print("[PURIFY] ({}/{}): {}".format(curr_page, num_pages, p))
+                        curr_page_str = str(curr_page).rjust(num_pages_len)
+                        print("[PURIFY] ({}/{}): {}".format(curr_page_str, num_pages, p))
                         # Make greyscale
                         gray = page_im.convert('L')
                         
@@ -509,7 +511,7 @@ try:
         # Setup exit handler to delete temp PDF
         input_pdf_file = None
         def exit_clean_temp_pdf():
-            print("[CLEANUP] Delete temporary PDF: {}".format(temp_pdf))
+            print("Delete temporary PDF: {}".format(temp_pdf))
             if input_pdf_file != None:
                 input_pdf_file.close()
             os.remove(temp_pdf)
