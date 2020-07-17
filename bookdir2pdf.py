@@ -723,4 +723,6 @@ try:
             print("File size: {} bytes".format(os.path.getsize(output_file)))
 except KeyboardInterrupt:
     print()
+    print()
+    print()
     print("[CTRL-C] Exiting...")
