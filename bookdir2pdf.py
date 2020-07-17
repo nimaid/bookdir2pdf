@@ -506,6 +506,16 @@ try:
         temp_pdf_file_binary = img2pdf.convert(page_list_files, dpi=pdf_dpi, x=None, y=None)
         print("\tDone!")
         
+        # Setup exit handler to delete temp PDF
+        input_pdf_file = None
+        def exit_clean_temp_pdf():
+            print("[CLEANUP] Delete temporary PDF: {}".format(temp_pdf))
+            if input_pdf_file != None:
+                input_pdf_file.close()
+            os.remove(temp_pdf)
+            print("\tDone!")
+        exit_funcs.append(exit_clean_temp_pdf)
+        
         print("Saving temporary PDF: {}".format(temp_pdf))
         with open(temp_pdf, "wb") as f:
             f.write(temp_pdf_file_binary)
@@ -703,15 +713,6 @@ try:
         
         print("\tDone!")
         
-        print()
-        print("-------- CLEAN UP --------")
-        
-        # Delete temporary PDF
-        print("Deleting temporary PDF: {}".format(temp_pdf))
-        input_pdf_file.close()
-        os.remove(temp_pdf)
-        print("\tDone!")
-
     # Set to print after other exit tasks
     def job_complete():
         print()
