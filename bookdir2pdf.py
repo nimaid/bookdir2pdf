@@ -564,17 +564,29 @@ try:
         toc_dict_list = list()
 
         # Add nested bookmarks from page_dict
-        ident_str = "--- "
-        ident_level = 0
         pagenum_pre = "Page #"
-        pagenum_space = 6
+        pagenum_post = "  "
+        ident_str = "--- "
+        
+        ident_level = 0
         last_page_index = -1 # Because we want the next page to be 0
         path_list = list()
         bookmark_list = list()
+        
+        # Print row of ToC function
+        page_ref = None # To make available in this scope
+        bm_name = None # To make available in this scope
+        def print_toc_row():
+            ident = "".join([ident_str for x in range(ident_level)])
+            page_toc_prefix = pagenum_pre + str(page_ref).ljust(num_pages_len) + pagenum_post
+            print(page_toc_prefix + ident + bm_name)
+        
         def iterdict(d, base_path="", empty_parents_in=list()):
             global ident_level
             global path_list
             global last_page_index
+            global page_ref
+            global bm_name
 
             for k, v in d.items():
                 filepath = os.path.join(base_path, os.path.sep.join(path_list))
@@ -602,8 +614,6 @@ try:
                     bm_name = k
                 
                 page_ref = last_page_index + 1
-                
-                ident = "".join([ident_str for x in range(ident_level)])
                 
                 # Test if it's a file or a directory
                 if len(v) > 0:
@@ -638,8 +648,8 @@ try:
                         })
                     
                     # Print row of ToC
-                    page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
-                    print(page_toc_prefix + ident + bm_name)
+                    print_toc_row()
+                    
                     ident_level += 1
                     
                     if not args["table_of_contents"]:
@@ -678,8 +688,7 @@ try:
                         page_ref = min(page_ref, num_pages - 1)
                         
                         # Print row of ToC
-                        page_toc_prefix = pagenum_pre + str(page_ref + 1).ljust(pagenum_space)
-                        print(page_toc_prefix + ident + bm_name)
+                        print_toc_row()
                         
                         if not args["table_of_contents"]:
                             # Add bookmark w/ parent, abandon as potential parent
