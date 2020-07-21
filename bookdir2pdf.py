@@ -637,7 +637,33 @@ try:
     toc_header += "\n" + "Table of Contents".center(toc_header_width)
 
     toc_header += "\n" + "".join(["-" for x in range(toc_header_width)])
-
+    
+    # Print row of ToC function
+    pagenum_pre = "Page #"
+    pagenum_post = "  "
+    ident_str = "--- "
+    def print_toc_row(bm_dict_in):
+        ident = "".join([ident_str for x in range(bm_dict_in["level"])])
+        page_toc_prefix = pagenum_pre + str(bm_dict_in["page"]).ljust(num_pages_len) + pagenum_post
+        page_toc_base = page_toc_prefix + ident
+        
+        # Break name into multiple lines if it's too long
+        if toc_line_break_limit != None:
+            if len(bm_dict_in["name"]) > toc_line_break_limit:
+                nm_lines = textwrap.fill(bm_dict_in["name"], width=toc_line_break_limit, break_long_words=False).split("\n")
+                print(page_toc_base + nm_lines[0])
+                for l in nm_lines[1:]:
+                    base_space = "".join([" " for x in range(len(page_toc_base))])
+                    print(base_space + l)
+                return
+            
+            # If we didn't break it up, just print it
+            print(page_toc_base + bm_dict_in["name"])
+    
+    # Save ToC lines to list
+    #TODO: refactor ToC generation
+    #TODO: Save ToC to file option
+    toc_dict_list = list()
 
     print()
     if len([p for p in page_dict.values() if p != OrderedDict()]) <= 0:
@@ -653,51 +679,18 @@ try:
             print("Table of Contents will be printed as bookmarks are created.")
             print()
 
-        # Print ToC header
-        print(toc_header)
-
-        # Save ToC lines to list
-        #TODO: refactor ToC generation
-        #TODO: Save ToC to file option
-        toc_dict_list = list()
-
         # Add nested bookmarks from page_dict
-        pagenum_pre = "Page #"
-        pagenum_post = "  "
-        ident_str = "--- "
-        
         ident_level = 0
         last_page_index = -1 # Because we want the next page to be 0
         path_list = list()
         bookmark_list = list()
-        
-        # Print row of ToC function
-        page_ref = None # To make available in this scope
-        bm_name = None # To make available in this scope
-        def print_toc_row():
-            ident = "".join([ident_str for x in range(ident_level)])
-            page_toc_prefix = pagenum_pre + str(page_ref).ljust(num_pages_len) + pagenum_post
-            page_toc_base = page_toc_prefix + ident
-            
-            # Break name into multiple lines if it's too long
-            if toc_line_break_limit != None:
-                if len(bm_name) > toc_line_break_limit:
-                    bm_name_lines = textwrap.fill(bm_name, width=toc_line_break_limit, break_long_words=False).split("\n")
-                    print(page_toc_base + bm_name_lines[0])
-                    for l in bm_name_lines[1:]:
-                        base_space = "".join([" " for x in range(len(page_toc_base))])
-                        print(base_space + l)
-                    return
-            
-            # If we didn't break it up, just print it
-            print(page_toc_base + bm_name)
-        
+        page_ref = None
         def iterdict(d, base_path="", empty_parents_in=list()):
             global ident_level
             global path_list
             global last_page_index
             global page_ref
-            global bm_name
+            global toc_dict_list
 
             for k, v in d.items():
                 filepath = os.path.join(base_path, os.path.sep.join(path_list))
@@ -759,7 +752,7 @@ try:
                         })
                     
                     # Print row of ToC
-                    print_toc_row()
+                    print_toc_row(toc_dict_list[-1])
                     
                     ident_level += 1
                     
@@ -798,8 +791,15 @@ try:
                         # Prevent referencing non-existent pages
                         page_ref = min(page_ref, num_pages - 1)
                         
+                        # Save to toc_dict_list
+                        toc_dict_list.append({
+                            "name": bm_name,
+                            "level": ident_level,
+                            "page": page_ref + 1
+                            })
+                        
                         # Print row of ToC
-                        print_toc_row()
+                        print_toc_row(toc_dict_list[-1])
                         
                         if not args["table_of_contents"]:
                             # Add bookmark w/ parent, abandon as potential parent
