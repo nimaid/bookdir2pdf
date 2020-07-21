@@ -152,7 +152,7 @@ def read_string_from_file(string_file_name):
 # Function to make any string into a valid filename
 def get_valid_filename(s):
     s = str(s).strip()
-    return re.sub(r'(?u)[^-\w.\ ,\!\'\&]', '_', s)
+    return re.sub(r'(?u)[\/\\\:\*\?\"\<\>\|]', '_', s)
 
 # Function to turn a path into the name after the os.path.extsep (even if no name)
 def path_to_ext(path_in):
@@ -430,7 +430,7 @@ try:
     print("\tPage count: {}".format(num_pages))
 
     # Run purification (save to temporary directory)
-    if purify:
+    if purify and num_image_pages > 0:
         print()
         print("-------- PURIFICATION --------")
         print("Saving purified images to temporary directory: {}".format(final_input_dir))
@@ -464,13 +464,12 @@ try:
             final_p = new_page_list[x]
             if os.path.isfile(p):
                 # It's a page file
-                curr_page += 1
-                
                 if os.path.splitext(p)[-1] in blank_exts:
                     # It's a blank page file, just copy
                     shutil.copy(p, final_p)
                 else:
                     # It's an image file, process
+                    curr_page += 1
                     with Image.open(p) as page_im:
                         if purify:
                             curr_page_str = str(curr_page).rjust(num_image_pages_len)
@@ -499,13 +498,19 @@ try:
         print("\tDone purifying images!")
     
     # Get size from first image
-    pl_files = [p for p in page_list if os.path.isfile(p)]
-    pl_files_images = [x for x in pl_files if os.path.splitext(x)[-1] not in blank_exts]
-    with Image.open(pl_files_images[0]) as cover:
-        width, height = cover.size
+    pl_files_images = [p for p in page_list if os.path.isfile(p) and os.path.splitext(p)[-1] not in blank_exts]
+    if num_image_pages > 0:
+        with Image.open(pl_files_images[0]) as cover:
+            width, height = cover.size
+    else:
+        width = int(pdf_dpi * 8.5) # Assume 8.5in
+        height = int(pdf_dpi * 11) # Assume 11in
+    
+    # Get number of blank pages
+    num_blank_pages = num_pages - num_image_pages
     
     # Test if blank pages are used
-    if len(pl_files) != len(pl_files_images):
+    if num_blank_pages > 0:
         blanks_used = True
     else:
         blanks_used = False
@@ -518,21 +523,36 @@ try:
         # Make pure white images for .blank files
         #TODO: Figure out how to make truly blank pages (or at least smaller file sizes)
         new_page_list = list()
+        blank_page_num = 0 # Goes to 1 on first page
         for p in page_list:
-            if os.path.splitext(p)[-1] in blank_exts and os.path.isfile(p):
-                # Make a white PNG in the temporary folder
-                blank_page_basename = os.path.relpath(p, final_input_dir)
-                blank_page_name = os.path.splitext(blank_page_basename)[0] + ".png"
-                blank_page_filename = os.path.join(temp_dir, blank_page_name)
-                
-                print("[BLANK]: {}".format(blank_page_filename))
-                blank_page = Image.new('1', (width, height), color = "white")
-                
-                Path(os.path.dirname(blank_page_filename)).mkdir(parents=True, exist_ok=True)
-                blank_page.save(blank_page_filename, "PNG", dpi=(pdf_dpi, pdf_dpi))
-                new_page_list.append(blank_page_filename)
+            page_basename = os.path.relpath(p, input_dir)
+            page_temp = os.path.realpath(os.path.join(temp_dir, page_basename))
+            
+            if os.path.isfile(p):
+                if os.path.splitext(p)[-1] in blank_exts:
+                    blank_page_num += 1
+                    
+                    # Make a white PNG in the temporary folder
+                    blank_page_name = os.path.splitext(page_basename)[0] + ".png"
+                    blank_page_filename = os.path.realpath(os.path.join(temp_dir, blank_page_name))
+                    
+                    curr_page_str = str(blank_page_num).rjust(len(str(num_blank_pages)))
+                    print("[BLANK] ({}/{}): {}".format(curr_page_str, num_blank_pages, blank_page_filename))
+                    blank_page = Image.new('1', (width, height), color = "white")
+                    
+                    Path(os.path.dirname(blank_page_filename)).mkdir(parents=True, exist_ok=True)
+                    blank_page.save(blank_page_filename, "PNG", dpi=(pdf_dpi, pdf_dpi))
+                    new_page_list.append(blank_page_filename)
+                else:
+                    # Copy image to temp (fix extra bookmark due to relative directory error)
+                    if p != page_temp:
+                        Path(os.path.dirname(page_temp)).mkdir(parents=True, exist_ok=True)
+                        shutil.copy(p, page_temp)
+                    new_page_list.append(page_temp)
             else:
-                new_page_list.append(p)
+                # Make directory in temp (fixes error mentioned above)
+                Path(page_temp).mkdir(parents=True, exist_ok=True)
+                new_page_list.append(page_temp)
         page_list = new_page_list
         
         print("\tDone creating blank pages!")
@@ -544,6 +564,7 @@ try:
     page_dict = OrderedDict()
     for p in page_list:
         p = os.path.relpath(p, final_input_dir) # Make relative
+        
         current_level = page_dict
         for part in p.split(os.path.sep):
             if part not in current_level:
