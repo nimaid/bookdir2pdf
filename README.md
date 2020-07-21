@@ -47,24 +47,24 @@ $ bookdir2pdf.py --input_dir test_dir/ --table_of_contents
 
 ... [output removed] ...
 
-test_dir - Table of Contents
-----------------------------
-Page #1     00. Cover Page
-Page #2     --- 01. Empty Directory Example
-Page #2     --- --- 01. Nested Empty Directory Level 1
-Page #2     --- --- --- 01. Nested Empty Directory Level 2
-Page #2     --- --- --- --- 01. Nested Empty Directory Level 3
-Page #2     Empty Directory .name File Example (allows for forbidden characters like <>?\/*: and also means you can make a really long name like this without hitting the path length limit of your OS)
-Page #2     02. The First Part
-Page #2     --- 01. Chapter 1
-Page #4     --- 02. Chapter 2
-Page #6     03. The Middle Part
-Page #6     --- 01. Chapter 3
-Page #8     --- 02. Chapter 4
-Page #10    04. The Final Part
-Page #10    --- 01. Chapter 5
-Page #12    --- 02. Chapter 6
-        Page count: 13
+Example PDF by https://github.com/nimaid/bookdir2pdf - Table of Contents
+------------------------------------------------------------------------
+Page #0   00. Cover Page
+Page #1   --- 01. Empty Directory Example
+Page #1   --- --- 01. Nested Empty Directory Level 1
+Page #1   --- --- --- 01. Nested Empty Directory Level 2
+Page #1   --- --- --- --- 01. Nested Empty Directory Level 3
+Page #2   Empty Directory .name File Example (allows for forbidden characters like <>?\/*: and also means you can make a really long name like this without hitting the path length limit of your OS)
+Page #2   02. The First Part
+Page #2   --- 01. Chapter 1
+Page #4   --- 02. Chapter 2
+Page #6   03. The Middle Part
+Page #6   --- 01. Chapter 3
+Page #8   --- 02. Chapter 4
+Page #10  04. The Final Part
+Page #10  --- 01. Chapter 5
+Page #12  --- 02. Chapter 6
+        Page count: 14
 
 ... [output removed] ...
 ```

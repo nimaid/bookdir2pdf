@@ -324,16 +324,19 @@ try:
     temp_dir = os.path.join(main_dir, temp_dir_name)
     
     if not args["table_of_contents"]:
-        # Make temp directory
-        os.mkdir(temp_dir)
-        
-        # Set up exit function to clean up if exited early
+        # Delete temp dir if it exists
         def clean_temp_dir():
             if os.path.exists(temp_dir):
                 if os.path.isdir(temp_dir):
                     shutil.rmtree(temp_dir)
                 elif os.path.isfile(temp_dir):
                     os.remove(temp_dir)
+        clean_temp_dir()
+        
+        # Make temp directory
+        os.mkdir(temp_dir)
+        
+        # Set up exit function to clean up if exited early
         def exit_clean_temp_dir():
             print("Delete temporary directory: {}".format(temp_dir))
             clean_temp_dir()
@@ -515,7 +518,7 @@ try:
     else:
         blanks_used = False
     
-    if blanks_used:
+    if blanks_used and not args["table_of_contents"]:
         print()
         print("-------- BLANK PAGES --------")
         print("Saving blank page images to temporary directory: {}".format(final_input_dir))
