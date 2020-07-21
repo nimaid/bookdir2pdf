@@ -186,8 +186,12 @@ author_exts = [".author"]
 # Set DPI extentions
 dpi_exts = [".dpi"]
 
+# Set blank page extentions
+blank_exts = [".blank"]
+page_exts += blank_exts
+
 metadata_file_exts = rename_exts + author_exts + dpi_exts
-valid_exts = ignored_file_exts + page_exts + metadata_file_exts
+valid_exts = ignored_file_exts + page_exts + metadata_file_exts + blank_exts
 
 # Get files in main input directory
 input_dir_files = [str(p) for p in Path(input_dir).glob("*") if os.path.isfile(p)]
@@ -315,15 +319,34 @@ try:
     # Prefix to prepend to temporary file/folder names
     temp_name_prepend = "__temp__"
 
+    # The temporary directory name
+    temp_dir_name = temp_name_prepend + input_dir_name
+    temp_dir = os.path.join(main_dir, temp_dir_name)
+    
+    if not args["table_of_contents"]:
+        # Make temp directory
+        os.mkdir(temp_dir)
+        
+        # Set up exit function to clean up if exited early
+        def clean_temp_dir():
+            if os.path.exists(temp_dir):
+                if os.path.isdir(temp_dir):
+                    shutil.rmtree(temp_dir)
+                elif os.path.isfile(temp_dir):
+                    os.remove(temp_dir)
+        def exit_clean_temp_dir():
+            print("Delete temporary directory: {}".format(temp_dir))
+            clean_temp_dir()
+            print("\tDone!")
+        exit_funcs.append(exit_clean_temp_dir)
+    
     # Make final input dir names
     if purify:
-        # Make temp directory name
-        final_input_dir_name = temp_name_prepend + input_dir_name
-        final_input_dir = os.path.join(main_dir, final_input_dir_name)
+        # Temp directory
+        final_input_dir = temp_dir
     else:
-        # The original directories
+        # The original directory
         final_input_dir = input_dir
-        final_input_dir_name = input_dir_name  
 
     # Save image paths (and empty/ignored-file dirs) paths to ordered list
     page_list = list()
@@ -401,7 +424,9 @@ try:
 
     # Get number of pages
     num_pages = len([p for p in page_list if os.path.isfile(p)])
+    num_image_pages = len([p for p in page_list if os.path.isfile(p) and os.path.splitext(p)[-1] not in blank_exts])
     num_pages_len = len(str(num_pages))
+    num_image_pages_len = len(str(num_image_pages))
     print("\tPage count: {}".format(num_pages))
 
     # Run purification (save to temporary directory)
@@ -411,12 +436,6 @@ try:
         print("Saving purified images to temporary directory: {}".format(final_input_dir))
         
         # Delete temp dir (or file with same name) if it already exists
-        def clean_temp_dir():
-            if os.path.exists(final_input_dir):
-                if os.path.isdir(final_input_dir):
-                    shutil.rmtree(final_input_dir)
-                elif os.path.isfile(final_input_dir):
-                    os.remove(final_input_dir)
         clean_temp_dir()
         
         # Create new page_list
@@ -439,53 +458,87 @@ try:
         for p in new_page_list_files:
             Path(os.path.dirname(p)).mkdir(parents=True, exist_ok=True)
         
-        # Set up exit function to clean up if exited early
-        def exit_clean_temp_dir():
-            print("Delete temporary directory: {}".format(final_input_dir))
-            clean_temp_dir()
-            print("\tDone!")
-        exit_funcs.append(exit_clean_temp_dir)
-        
         # Process image files
         curr_page = 0 # Will go to 1 before first print
         for x, p in enumerate(page_list):
             final_p = new_page_list[x]
             if os.path.isfile(p):
-                # It's an image file
+                # It's a page file
                 curr_page += 1
-                with Image.open(p) as page_im:
-                    if purify:
-                        curr_page_str = str(curr_page).rjust(num_pages_len)
-                        print("[PURIFY] ({}/{}): {}".format(curr_page_str, num_pages, p))
-                        # Make greyscale
-                        gray = page_im.convert('L')
-                        
-                        # Sharpen 
-                        enhancer = ImageEnhance.Sharpness(gray)
-                        sharpen = enhancer.enhance(sharpen_factor)
-                        
-                        # Apply threshold
-                        thresh = sharpen.point(lambda p: p > thresh_setting and 255)  
-                        
-                        # Make 1 bit
-                        final_page_im = thresh.convert('1')
-                    else:
-                        final_page_im = page_im
                 
-                # Save image
-                final_page_im.save(final_p, "PNG", dpi=(pdf_dpi, pdf_dpi))
-
+                if os.path.splitext(p)[-1] in blank_exts:
+                    # It's a blank page file, just copy
+                    shutil.copy(p, final_p)
+                else:
+                    # It's an image file, process
+                    with Image.open(p) as page_im:
+                        if purify:
+                            curr_page_str = str(curr_page).rjust(num_image_pages_len)
+                            print("[PURIFY] ({}/{}): {}".format(curr_page_str, num_image_pages, p))
+                            # Make greyscale
+                            gray = page_im.convert('L')
+                            
+                            # Sharpen 
+                            enhancer = ImageEnhance.Sharpness(gray)
+                            sharpen = enhancer.enhance(sharpen_factor)
+                            
+                            # Apply threshold
+                            thresh = sharpen.point(lambda p: p > thresh_setting and 255)  
+                            
+                            # Make 1 bit
+                            final_page_im = thresh.convert('1')
+                        else:
+                            final_page_im = page_im
+                    
+                    # Save image
+                    final_page_im.save(final_p, "PNG", dpi=(pdf_dpi, pdf_dpi))
+                
         # Update page_list with new images/paths
         page_list = new_page_list
         
         print("\tDone purifying images!")
-
+    
+    # Get size from first image
+    pl_files = [p for p in page_list if os.path.isfile(p)]
+    pl_files_images = [x for x in pl_files if os.path.splitext(x)[-1] not in blank_exts]
+    with Image.open(pl_files_images[0]) as cover:
+        width, height = cover.size
+    
+    # Test if blank pages are used
+    if len(pl_files) != len(pl_files_images):
+        blanks_used = True
+    else:
+        blanks_used = False
+    
+    if blanks_used:
+        print()
+        print("-------- BLANK PAGES --------")
+        print("Saving blank page images to temporary directory: {}".format(final_input_dir))
+    
+        # Make pure white images for .blank files
+        #TODO: Figure out how to make truly blank pages (or at least smaller file sizes)
+        new_page_list = list()
+        for p in page_list:
+            if os.path.splitext(p)[-1] in blank_exts and os.path.isfile(p):
+                # Make a white PNG in the temporary folder
+                blank_page_basename = os.path.relpath(p, final_input_dir)
+                blank_page_name = os.path.splitext(blank_page_basename)[0] + ".png"
+                blank_page_filename = os.path.join(temp_dir, blank_page_name)
+                
+                print("[BLANK]: {}".format(blank_page_filename))
+                blank_page = Image.new('1', (width, height), color = "white")
+                
+                Path(os.path.dirname(blank_page_filename)).mkdir(parents=True, exist_ok=True)
+                blank_page.save(blank_page_filename, "PNG", dpi=(pdf_dpi, pdf_dpi))
+                new_page_list.append(blank_page_filename)
+            else:
+                new_page_list.append(p)
+        page_list = new_page_list
+        
+        print("\tDone creating blank pages!")
+    
     # Make page_list but with only files
     page_list_files = [p for p in page_list if os.path.isfile(p)]
-
-    # Get size from first page
-    with Image.open(page_list_files[0]) as cover:
-        width, height = cover.size
 
     # Create nested ordered dictionary from list
     page_dict = OrderedDict()
