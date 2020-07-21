@@ -263,6 +263,8 @@ if not args["table_of_contents"]:
     output_file = os.path.realpath(output_file)  
     output_file_dir, output_file_name = os.path.split(output_file)
 
+toc_line_break_limit = 80 #TODO: Argument?
+
 # Print main program warnings
 if args["table_of_contents"] and args["purify"] != None:
     print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-c) arguments were passed, will not purify images.")
@@ -309,6 +311,7 @@ try:
     from collections import OrderedDict
     from PyPDF2 import PdfFileWriter, PdfFileReader
     import shutil
+    import textwrap
 
     print()
     print("-------- DIRECTORY SCANNING --------")
@@ -609,14 +612,32 @@ try:
         print("\tDone!")
         
 
+    
+    # Wrap PDF title based on toc_line_break_limit
+    #TODO: Wrap author and const toc string (all elements, after new max length todo below)
+    toc_head_set = False
+    if toc_line_break_limit != None:
+        if len(pdf_title) > toc_line_break_limit:
+            #TODO: Wrap to max line length (after print refactor so I can max() the list of len()s)
+            toc_title_lines = textwrap.fill(pdf_title, width=toc_line_break_limit, break_long_words=False).split("\n")
+            toc_header_width = max([len(x) for x in toc_title_lines])
+            toc_header = ""
+            for x, l in enumerate(toc_title_lines):
+                toc_header += l.center(toc_header_width)
+                if x < len(toc_title_lines)-1:
+                    toc_header += "\n"
+            toc_head_set = True
+    if not toc_head_set:
+        toc_header_width = len(pdf_title)
+        toc_header = pdf_title
 
-    # Get ToC title
-    toc_title = pdf_title
     if len(pdf_author) > 0:
-        toc_title += " by " + pdf_author
-    toc_title += " - Table of Contents"
+        toc_header_author = "by " + pdf_author
+        toc_header += "\n" + toc_header_author.center(toc_header_width)
+    toc_header += "\n" + "Table of Contents".center(toc_header_width)
 
-    toc_header = toc_title + '\n' + ''.join(['-' for x in range(len(toc_title))])
+    toc_header += "\n" + "".join(["-" for x in range(toc_header_width)])
+
 
     print()
     if len([p for p in page_dict.values() if p != OrderedDict()]) <= 0:
@@ -656,7 +677,20 @@ try:
         def print_toc_row():
             ident = "".join([ident_str for x in range(ident_level)])
             page_toc_prefix = pagenum_pre + str(page_ref).ljust(num_pages_len) + pagenum_post
-            print(page_toc_prefix + ident + bm_name)
+            page_toc_base = page_toc_prefix + ident
+            
+            # Break name into multiple lines if it's too long
+            if toc_line_break_limit != None:
+                if len(bm_name) > toc_line_break_limit:
+                    bm_name_lines = textwrap.fill(bm_name, width=toc_line_break_limit, break_long_words=False).split("\n")
+                    print(page_toc_base + bm_name_lines[0])
+                    for l in bm_name_lines[1:]:
+                        base_space = "".join([" " for x in range(len(page_toc_base))])
+                        print(base_space + l)
+                    return
+            
+            # If we didn't break it up, just print it
+            print(page_toc_base + bm_name)
         
         def iterdict(d, base_path="", empty_parents_in=list()):
             global ident_level
