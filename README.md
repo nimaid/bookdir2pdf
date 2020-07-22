@@ -221,7 +221,7 @@ Page #291  --- E. Useful References
 ```
 
 ```
-                             Electronotes - Musical Engineer's Handbook
+                                    Musical Engineer's Handbook
                                          by Bernie Hutchins
                                          Table of Contents
 ---------------------------------------------------------------------------------------------------
