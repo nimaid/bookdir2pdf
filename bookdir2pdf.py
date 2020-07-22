@@ -272,7 +272,7 @@ else:
     tocf_args = ()
 
 # Defaults
-toc_line_break_limit = 80
+toc_line_break_limit = None
 pagenum_pre = "Page #"
 pagenum_post = "  "
 ident_str = "--- "
@@ -297,13 +297,16 @@ for tocf_arg in tocf_args:
         except(ValueError):
             worked = False
         
-        # Test if it's greater than 10
+        # Test if it's greater than min_toc_line_break_limit
         min_toc_line_break_limit = 10
-        if toc_line_break_limit <= min_toc_line_break_limit:
+        if toc_line_break_limit == 0:
+            toc_line_break_limit = None
+            workied=True
+        elif toc_line_break_limit <= min_toc_line_break_limit:
             worked = False
         
         if not worked:
-            raise argparse.ArgumentTypeError("(--break_limit | -b) length must be an integer greater than {}.".format(min_toc_line_break_limit))
+            raise argparse.ArgumentTypeError("(--break_limit | -b) length must be an integer greater than {}, or 0 for no limit.".format(min_toc_line_break_limit))
     elif tocf_arg_name in ["number_prefix", "p"]:
         pagenum_pre = tocf_arg_value
     elif tocf_arg_name in ["number_postfix", "a"]:
@@ -404,11 +407,12 @@ if purify:
     print("\tSharpening factor: {}".format(sharpen_factor))
     print("\tThreshold: {}.".format(thresh_setting))
 
-print("Table of Contents formatting:")
-print("\tName length break limit: {}".format(toc_line_break_limit))
-print("\tPage number prefix: '{}'".format(pagenum_pre))
-print("\tPage number postfix: '{}'".format(pagenum_post))
-print("\tIndent text: '{}'".format(ident_str))
+if args["table_of_contents_format"] != None:
+    print("Table of Contents formatting:")
+    print("\tName length break limit: {}".format(toc_line_break_limit))
+    print("\tPage number prefix: '{}'".format(pagenum_pre))
+    print("\tPage number postfix: '{}'".format(pagenum_post))
+    print("\tIndent text: '{}'".format(ident_str))
 
 
 # We will be catching KeyboardInterrupts
@@ -904,9 +908,9 @@ try:
                     final_row += "\n" + base_space + l
                 return final_row
             
-            # If we didn't break it up, just return it
-            final_row += "\n" + page_toc_base + bm_dict_in["name"]
-            return final_row.strip("\n")
+        # If we didn't break it up, just return it
+        final_row += page_toc_base + bm_dict_in["name"]
+        return final_row
     
     # Make rows of ToC
     toc_row_list = [make_toc_row(r) for r in toc_dict_list]
