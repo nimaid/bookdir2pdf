@@ -62,7 +62,7 @@ ap.add_argument("-t", "--title", type=str, default=None,
 ap.add_argument("-a", "--author", type=str, default=None,
     help="the PDF author")
 ap.add_argument("-f", "--table_of_contents_format", action="store", default=None, nargs="*", type=str, 
-    help="formatting options for the table of contents, named sub-arguments: (break_limit|b)")
+    help="formatting options for the table of contents, named sub-arguments: (break_limit|b) (number_prefix|p) (number_postfix|a) (indent|i)")
 args = vars(ap.parse_args())
 
 print()
@@ -273,6 +273,9 @@ else:
 
 # Defaults
 toc_line_break_limit = 80
+pagenum_pre = "Page #"
+pagenum_post = "  "
+ident_str = "--- "
 
 # Parse ToC formatting sub arguments
 for tocf_arg in tocf_args:
@@ -283,15 +286,14 @@ for tocf_arg in tocf_args:
         raise argparse.ArgumentTypeError("Invalid argument format. Use arg_name=arg_value.")
     
     # Get name and value separately
-    tocf_arg_name, tocf_arg_value = [x.lower().strip() for x in tocf_arg_split]
+    tocf_arg_name, tocf_arg_value = [x.lower() for x in tocf_arg_split]
     
-    # Parse purify named sub-arguments
+    # Parse ToC formatting named sub-arguments
     if tocf_arg_name in ["break_limit", "b"]:
-        # Test if it's an and set
+        # Test if it's an int and set
         worked = True
         try:
-            print("'{}'".format(tocf_arg_value))
-            toc_line_break_limit = int(tocf_arg_value)
+            toc_line_break_limit = int(tocf_arg_value.strip())
         except(ValueError):
             worked = False
         
@@ -302,6 +304,12 @@ for tocf_arg in tocf_args:
         
         if not worked:
             raise argparse.ArgumentTypeError("(--break_limit | -b) length must be an integer greater than {}.".format(min_toc_line_break_limit))
+    elif tocf_arg_name in ["number_prefix", "p"]:
+        pagenum_pre = tocf_arg_value
+    elif tocf_arg_name in ["number_postfix", "a"]:
+        pagenum_post = tocf_arg_value
+    elif tocf_arg_name in ["indent", "i"]:
+        ident_str = tocf_arg_value
     else:
         raise argparse.ArgumentTypeError("'{}' is not a valid option for (--break_limit | -b).".format(tocf_arg_name))
 
@@ -395,6 +403,12 @@ if purify:
     print("Will purify documents:")
     print("\tSharpening factor: {}".format(sharpen_factor))
     print("\tThreshold: {}.".format(thresh_setting))
+
+print("Table of Contents formatting:")
+print("\tName length break limit: {}".format(toc_line_break_limit))
+print("\tPage number prefix: '{}'".format(pagenum_pre))
+print("\tPage number postfix: '{}'".format(pagenum_post))
+print("\tIndent text: '{}'".format(ident_str))
 
 
 # We will be catching KeyboardInterrupts
@@ -874,9 +888,6 @@ try:
     print("Building Table of Contents from bookmark hierarchy...")
     
     # Make row of ToC function
-    pagenum_pre = "Page #"
-    pagenum_post = "  "
-    ident_str = "--- "
     def make_toc_row(bm_dict_in):
         ident = "".join([ident_str for x in range(bm_dict_in["level"])])
         page_toc_prefix = pagenum_pre + str(bm_dict_in["page"]).ljust(num_pages_len) + pagenum_post

@@ -32,7 +32,8 @@ optional arguments:
                         the PDF author
   -f [TABLE_OF_CONTENTS_FORMAT [TABLE_OF_CONTENTS_FORMAT ...]], --table_of_contents_format [TABLE_OF_CONTENTS_FORMAT [TABLE_OF_CONTENTS_FORMAT ...]]
                         formatting options for the table of contents, named
-                        sub-arguments: (break_limit|b)
+                        sub-arguments: (break_limit|b) (number_prefix|p)
+                        (number_postfix|a) (indent|i)
 ```
 
 The PDF here was made using:
