@@ -61,7 +61,8 @@ ap.add_argument("-t", "--title", type=str, default=None,
     help="the PDF title ( defaults to the directory basename )")
 ap.add_argument("-a", "--author", type=str, default=None,
     help="the PDF author")
-
+ap.add_argument("-f", "--table_of_contents_format", action="store", default=None, nargs="*", type=str, 
+    help="formatting options for the table of contents, named sub-arguments: (break_limit|b)")
 args = vars(ap.parse_args())
 
 print()
@@ -264,7 +265,99 @@ if not args["no_pdf"]:
     output_file = os.path.realpath(output_file)  
     output_file_dir, output_file_name = os.path.split(output_file)
 
-toc_line_break_limit = 80 #TODO: Argument?
+# Test if special ToC formatting is used
+if args["table_of_contents_format"] != None:
+    tocf_args = args["table_of_contents_format"]
+else:
+    tocf_args = ()
+
+# Defaults
+toc_line_break_limit = 80
+
+# Parse ToC formatting sub arguments
+for tocf_arg in tocf_args:
+    tocf_arg_split = tocf_arg.split("=")
+    
+    # Only allow [string]=[string]
+    if len(tocf_arg_split) != 2:
+        raise argparse.ArgumentTypeError("Invalid argument format. Use arg_name=arg_value.")
+    
+    # Get name and value separately
+    tocf_arg_name, tocf_arg_value = [x.lower().strip() for x in tocf_arg_split]
+    
+    # Parse purify named sub-arguments
+    if tocf_arg_name in ["break_limit", "b"]:
+        # Test if it's an and set
+        worked = True
+        try:
+            print("'{}'".format(tocf_arg_value))
+            toc_line_break_limit = int(tocf_arg_value)
+        except(ValueError):
+            worked = False
+        
+        # Test if it's greater than 10
+        min_toc_line_break_limit = 10
+        if toc_line_break_limit <= min_toc_line_break_limit:
+            worked = False
+        
+        if not worked:
+            raise argparse.ArgumentTypeError("(--break_limit | -b) length must be an integer greater than {}.".format(min_toc_line_break_limit))
+    else:
+        raise argparse.ArgumentTypeError("'{}' is not a valid option for (--break_limit | -b).".format(tocf_arg_name))
+
+# Parse purify sub-arguments (values)
+if purify:
+    # Defaults
+    sharpen_factor = 2
+    thresh_setting = 170
+    
+    for p_arg in purify_args:
+        p_arg_split = p_arg.split("=")
+        
+        # Only allow [string]=[string]
+        if len(p_arg_split) != 2:
+            raise argparse.ArgumentTypeError("Invalid argument format. Use arg_name=arg_value.")
+
+        # Get name and value separately
+        p_arg_name, p_arg_value = [x.lower().strip() for x in p_arg_split]
+
+        # Parse purify named sub-arguments
+        if p_arg_name in ["sharpen", "s"]:
+            # Test if it's a float and set
+            worked = True
+            try:
+                sharpen_factor = float(p_arg_value)
+            except(ValueError):
+                worked = False
+            
+            # Test if it's greater than 0
+            if sharpen_factor <= 0:
+                worked = False
+            
+            if not worked:
+                raise argparse.ArgumentTypeError("(--purify | -p) sharpness must be a float greater than 0.")
+        elif p_arg_name in ["threshold", "t"]:
+            # Test if it's a float and set
+            worked = True
+            try:
+                thresh_setting = float(p_arg_value)
+            except(ValueError):
+                worked = False
+            
+            # Test if it's positive
+            if thresh_setting < 0:
+                worked = False
+            
+            # Test if it's <= 255
+            if thresh_setting > 255:
+                worked = False
+            
+            if not worked:
+                raise argparse.ArgumentTypeError("(--purify | -p) threshold must be a positive float <= 255.")
+        else:
+            raise argparse.ArgumentTypeError("'{}' is not a valid option for (--purify | -p).".format(p_arg_name))
+
+
 
 # Print main program warnings
 if args["no_pdf"] and args["purify"] != None:
