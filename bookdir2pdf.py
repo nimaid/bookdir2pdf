@@ -51,7 +51,7 @@ ap.add_argument("-o", "--output_file", type=str, default=None,
     help="output file path ( defaults to [input_dir].pdf )")
 ap.add_argument("-s", "--order_number_separator", type=str, default=None,
     help="the character used to separate the directory ordering numbers from the bookmark names ( like '.' or ')' )")
-ap.add_argument("-c", "--table_of_contents", action="store_true",
+ap.add_argument("-n", "--no_pdf", action="store_true",
     help="just scan directory and print table of contents")
 ap.add_argument("-p", "--purify", action="store", default=None, nargs="*", type=str, 
     help="purify scanned B&W page ( greyscale, sharpen, threshold ), named sub-arguments: (sharpen|s) (threshold|t)")
@@ -61,6 +61,7 @@ ap.add_argument("-t", "--title", type=str, default=None,
     help="the PDF title ( defaults to the directory basename )")
 ap.add_argument("-a", "--author", type=str, default=None,
     help="the PDF author")
+
 args = vars(ap.parse_args())
 
 print()
@@ -87,8 +88,8 @@ else:
     purify = False
     purify_args = ()
 
-# Do not purify if --table_of_contents is set
-if args["table_of_contents"]:
+# Do not purify if --no_pdf is set
+if args["no_pdf"]:
     purify = False
 
 # Parse purify sub-arguments (values)
@@ -243,7 +244,7 @@ else:
     pdf_author = ""
 
 # Resolve output filename
-if not args["table_of_contents"]:
+if not args["no_pdf"]:
     if args["output_file"] == None:
         # Default to title
         pdf_title_safe_filename = get_valid_filename(pdf_title)
@@ -266,8 +267,8 @@ if not args["table_of_contents"]:
 toc_line_break_limit = 80 #TODO: Argument?
 
 # Print main program warnings
-if args["table_of_contents"] and args["purify"] != None:
-    print("[WARNING]: Both (--purify|-p) and (--table_of_contents|-c) arguments were passed, will not purify images.")
+if args["no_pdf"] and args["purify"] != None:
+    print("[WARNING]: Both (--purify|-p) and (--no_pdf|-n) arguments were passed, will not make PDF.")
 
 # Print settings
 print()
@@ -286,12 +287,12 @@ if len(pdf_author) <= 0:
 else:
     print("PDF author: {}".format(pdf_author))
 
-if not args["table_of_contents"]:
+if not args["no_pdf"]:
     print("PDF resolution: {} DPI".format(pdf_dpi))
 
 print("Input directory: {}".format(input_dir))
 
-if args["table_of_contents"]:
+if args["no_pdf"]:
     print("Will only print the Table of Contents, will NOT process images or save PDF.")
 else:
     # Print target filename
@@ -315,6 +316,7 @@ try:
 
     print()
     print("-------- DIRECTORY SCANNING --------")
+    print("Scanning directory: '{}'...".format(input_dir))
 
     # Walk though folder structure (recursive alphabetical, include all files/folders)
     input_dir_list = [str(p) for p in sorted(Path(input_dir).glob('**/*'))]
@@ -326,7 +328,7 @@ try:
     temp_dir_name = temp_name_prepend + input_dir_name
     temp_dir = os.path.join(main_dir, temp_dir_name)
     
-    if not args["table_of_contents"]:
+    if not args["no_pdf"]:
         # Delete temp dir if it exists
         def clean_temp_dir():
             if os.path.exists(temp_dir):
@@ -521,7 +523,7 @@ try:
     else:
         blanks_used = False
     
-    if blanks_used and not args["table_of_contents"]:
+    if blanks_used and not args["no_pdf"]:
         print()
         print("-------- BLANK PAGES --------")
         print("Saving blank page images to temporary directory: {}".format(final_input_dir))
@@ -580,7 +582,7 @@ try:
 
 
     # Create PDF from page_list(no bookmarks)
-    if not args["table_of_contents"]:
+    if not args["no_pdf"]:
         print()
         print("-------- PDF CREATION --------")
         temp_pdf = os.path.join(output_file_dir, temp_name_prepend + output_file_name)
@@ -610,75 +612,21 @@ try:
         input_pdf = PdfFileReader(input_pdf_file)
         output_pdf.appendPagesFromReader(input_pdf)
         print("\tDone!")
-        
-
     
-    # Wrap PDF title based on toc_line_break_limit
-    #TODO: Wrap author and const toc string (all elements, after new max length todo below)
-    toc_head_set = False
-    if toc_line_break_limit != None:
-        if len(pdf_title) > toc_line_break_limit:
-            #TODO: Wrap to max line length (after print refactor so I can max() the list of len()s)
-            toc_title_lines = textwrap.fill(pdf_title, width=toc_line_break_limit, break_long_words=False).split("\n")
-            toc_header_width = max([len(x) for x in toc_title_lines])
-            toc_header = ""
-            for x, l in enumerate(toc_title_lines):
-                toc_header += l.center(toc_header_width)
-                if x < len(toc_title_lines)-1:
-                    toc_header += "\n"
-            toc_head_set = True
-    if not toc_head_set:
-        toc_header_width = len(pdf_title)
-        toc_header = pdf_title
-
-    if len(pdf_author) > 0:
-        toc_header_author = "by " + pdf_author
-        toc_header += "\n" + toc_header_author.center(toc_header_width)
-    toc_header += "\n" + "Table of Contents".center(toc_header_width)
-
-    toc_header += "\n" + "".join(["-" for x in range(toc_header_width)])
     
-    # Print row of ToC function
-    pagenum_pre = "Page #"
-    pagenum_post = "  "
-    ident_str = "--- "
-    def print_toc_row(bm_dict_in):
-        ident = "".join([ident_str for x in range(bm_dict_in["level"])])
-        page_toc_prefix = pagenum_pre + str(bm_dict_in["page"]).ljust(num_pages_len) + pagenum_post
-        page_toc_base = page_toc_prefix + ident
-        
-        # Break name into multiple lines if it's too long
-        if toc_line_break_limit != None:
-            if len(bm_dict_in["name"]) > toc_line_break_limit:
-                nm_lines = textwrap.fill(bm_dict_in["name"], width=toc_line_break_limit, break_long_words=False).split("\n")
-                print(page_toc_base + nm_lines[0])
-                for l in nm_lines[1:]:
-                    base_space = "".join([" " for x in range(len(page_toc_base))])
-                    print(base_space + l)
-                return
-            
-            # If we didn't break it up, just print it
-            print(page_toc_base + bm_dict_in["name"])
-    
+    print()
+    print("-------- BOOKMARKS --------")
+    print("Creating bookmark hierarchy from directory structure...")
     # Save ToC lines to list
-    #TODO: refactor ToC generation
     #TODO: Save ToC to file option
     toc_dict_list = list()
-
-    print()
     if len([p for p in page_dict.values() if p != OrderedDict()]) <= 0:
-        if not args["table_of_contents"]:
-            print("-------- BOOKMARK CREATION --------")
+        print()
+        if not args["no_pdf"]:
             print("[WARNING]: No subdirectories found, not creating bookmarks.")
         else:
-            print(toc_header)
             print("[ERROR]: No subdirectories found, no table of contents to generate.")
     else:
-        if not args["table_of_contents"]:
-            print("-------- BOOKMARK CREATION --------")
-            print("Table of Contents will be printed as bookmarks are created.")
-            print()
-
         # Add nested bookmarks from page_dict
         ident_level = 0
         last_page_index = -1 # Because we want the next page to be 0
@@ -751,12 +699,9 @@ try:
                         "page": page_ref + 1
                         })
                     
-                    # Print row of ToC
-                    print_toc_row(toc_dict_list[-1])
-                    
                     ident_level += 1
                     
-                    if not args["table_of_contents"]:
+                    if not args["no_pdf"]:
                         # Add bookmark w/ parent, save as potential parent
                         bm = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
                         
@@ -768,7 +713,7 @@ try:
                     # Do recursion
                     iterdict(v, base_path=base_path, empty_parents_in=empty_parents)
                     
-                    if not args["table_of_contents"]:
+                    if not args["no_pdf"]:
                         temp = bookmark_list.pop()
                     temp = path_list.pop()
                     
@@ -798,10 +743,7 @@ try:
                             "page": page_ref + 1
                             })
                         
-                        # Print row of ToC
-                        print_toc_row(toc_dict_list[-1])
-                        
-                        if not args["table_of_contents"]:
+                        if not args["no_pdf"]:
                             # Add bookmark w/ parent, abandon as potential parent
                             temp = output_pdf.addBookmark(bm_name, page_ref, parent=bm_parent)
                     else:
@@ -809,12 +751,9 @@ try:
                         page_index = page_list_files.index(filename)
                         last_page_index = page_index
         iterdict(page_dict, base_path=final_input_dir)
-
-        print("\tPage count: {}".format(num_pages))
-
-    if not args["table_of_contents"]:
-        print()
-        print("-------- SAVE PDF --------")
+        print("\tDone!")
+        
+    if not args["no_pdf"]:
         print("Saving bookmarked PDF: {}".format(output_file))
         
         # Create PDF metadata
@@ -834,13 +773,82 @@ try:
             output_pdf.write(f)
         
         print("\tDone!")
+    
+    
+    
+    print()
+    print("-------- TABLE OF CONTENTS --------")
+    print("Building Table of Contents from bookmark hierarchy...")
+    
+    # Make row of ToC function
+    pagenum_pre = "Page #"
+    pagenum_post = "  "
+    ident_str = "--- "
+    def make_toc_row(bm_dict_in):
+        ident = "".join([ident_str for x in range(bm_dict_in["level"])])
+        page_toc_prefix = pagenum_pre + str(bm_dict_in["page"]).ljust(num_pages_len) + pagenum_post
+        page_toc_base = page_toc_prefix + ident
+        
+        final_row = ""
+        # Break name into multiple lines if it's too long
+        if toc_line_break_limit != None:
+            if len(bm_dict_in["name"]) > toc_line_break_limit:
+                nm_lines = textwrap.fill(bm_dict_in["name"], width=toc_line_break_limit, break_long_words=False).split("\n")
+                final_row += page_toc_base + nm_lines[0]
+                for l in nm_lines[1:]:
+                    base_space = "".join([" " for x in range(len(page_toc_base))])
+                    final_row += "\n" + base_space + l
+                return final_row
+            
+            # If we didn't break it up, just return it
+            final_row += "\n" + page_toc_base + bm_dict_in["name"]
+            return final_row.strip("\n")
+    
+    # Make rows of ToC
+    toc_row_list = [make_toc_row(r) for r in toc_dict_list]
+    
+    # Get max line width
+    toc_header_width = max([max([len(y) for y in x.split("\n")]) for x in toc_row_list])
+    
+    # Get ToC title
+    toc_title_lines = textwrap.fill(pdf_title, width=toc_header_width, break_long_words=False).split("\n")
+    toc_title = ["\n".join([x.center(toc_header_width) for x in toc_title_lines])]
+    
+    # Get ToC author (if applicable)
+    toc_author = list()
+    if len(pdf_author) > 0:
+        toc_header_author = "by " + pdf_author
+        toc_author_lines = textwrap.fill(toc_header_author, width=toc_header_width, break_long_words=False).split("\n")
+        toc_author = ["\n".join([x.center(toc_header_width) for x in toc_author_lines])]
+    
+    # Get ToC label
+    toc_label_lines = textwrap.fill("Table of Contents", width=toc_header_width, break_long_words=False).split("\n")
+    toc_label = ["\n".join([x.center(toc_header_width) for x in toc_label_lines])]
+    
+    # Get ToC seperator
+    toc_sep = ["".join(["-" for x in range(toc_header_width)])]
+    
+    # Get page count text
+    toc_pagecount = ["\tPage count: {}".format(num_pages)]
+    
+    # Make list with all ToC lines
+    final_toc_list = toc_title + toc_author + toc_label + toc_sep + toc_row_list + toc_pagecount
+    
+    print("\tDone!")
+    
+    # Print ToC lines
+    print()
+    for r in final_toc_list:
+        print(r)
+    
+    
         
     # Set to print after other exit tasks
     def job_complete():
         print()
         print("-------- JOB COMPLETE --------")
         print("Page count: {}".format(num_pages))
-        if not args["table_of_contents"]:
+        if not args["no_pdf"]:
             print("Final PDF location: {}".format(output_file))
             print("File size: {} bytes".format(os.path.getsize(output_file)))
 except KeyboardInterrupt:
